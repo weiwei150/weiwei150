@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AnythingLLM 管理</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+.header{background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:16px 32px;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:20px}
+.container{max-width:1100px;margin:24px auto;padding:0 16px}
+.tabs{display:flex;gap:4px;margin-bottom:20px}
+.tab{padding:10px 20px;background:#1e293b;border:none;color:#94a3b8;border-radius:8px 8px 0 0;cursor:pointer;font-size:14px}
+.tab.active{background:#6366f1;color:#fff}
+.panel{display:none;background:#1e293b;border-radius:0 12px 12px 12px;padding:24px}
+.panel.active{display:block}
+.item-list{list-style:none}
+.item-list li{padding:12px 16px;margin-bottom:8px;background:#334155;border-radius:8px;display:flex;justify-content:space-between;align-items:center}
+.item-list li:hover{background:#3b4d66}
+.doc-tree{padding-left:20px}
+.doc-tree .folder{cursor:pointer;padding:8px;border-radius:6px;margin-bottom:4px}
+.doc-tree .folder:hover{background:#334155}
+.doc-tree .file{padding:6px 8px;color:#94a3b8;font-size:13px;margin-left:16px}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600}
+.btn-danger{background:#ef4444;color:#fff}
+.btn-danger:hover{background:#dc2626}
+.btn-primary{background:#6366f1;color:#fff}
+.btn-primary:hover{background:#4f46e5}
+.btn-sm{padding:4px 10px;font-size:12px}
+.badge{background:#6366f1;color:#fff;padding:2px 8px;border-radius:10px;font-size:11px}
+.status{font-size:13px;color:#94a3b8}
+.spinner{width:20px;height:20px;border:2px solid rgba(99,102,241,.2);border-top-color:#6366f1;border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading{text-align:center;padding:20px}
+.error{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444;padding:10px 14px;border-radius:8px;font-size:13px;margin-top:12px;display:none}
+.error.show{display:block}
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:12px;color:#94a3b8;margin-bottom:4px}
+input[type="text"],select{width:100%;background:#334155;border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:8px 12px;color:#e2e8f0;font-size:13px;outline:none}
+</style>
+</head>
+<body>
+<div class="header"><h1>AnythingLLM 管理</h1><div class="status" id="status">就绪</div></div>
+<div class="container">
+<div class="tabs">
+<button class="tab active" onclick="showPanel('workspaces')">工作区</button>
+<button class="tab" onclick="showPanel('documents')">文档</button>
+</div>
+<div id="panel-workspaces" class="panel active">
+<h2 style="margin-bottom:16px">工作区列表</h2>
+<div class="loading" id="ws-loading"><div class="spinner"></div>加载中...</div>
+<ul class="item-list" id="ws-list"></ul>
+</div>
+<div id="panel-documents" class="panel">
+<h2 style="margin-bottom:16px">文档树</h2>
+<div class="form-group" style="margin-bottom:16px">
+<label>选择工作区</label>
+<select id="ws-select" onchange="loadDocuments()"><option value="">-- 请选择 --</option></select>
+</div>
+<div id="doc-tree" class="doc-tree"></div>
+<div id="doc-error" class="error"></div>
+</div>
+</div>
+<script>
+const API='';
+let workspaces=[];
+async function loadWorkspaces(){
+  const el=document.getElementById('ws-loading');el.style.display='block';
+  try{const r=await fetch(API+'/api/workspaces');const d=await r.json();workspaces=d.workspaces||[];renderWorkspaces()}
+  catch(e){document.getElementById('ws-list').innerHTML='<li style="color:#ef4444">加载失败:'+e+'</li>'}
+  finally{el.style.display='none'}
+}
+function renderWorkspaces(){
+  const list=document.getElementById('ws-list');
+  list.innerHTML=workspaces.map(w=>`<li><div><span class="badge">${w.slug||w.name}</span><span style="margin-left:8px;color:#94a3b8">${w.name||w.slug}</span></div><div><span class="status">${w.documentCount||0} 文档</span></div></li>`).join('');
+  const sel=document.getElementById('ws-select');
+  sel.innerHTML='<option value="">-- 请选择 --</option>'+workspaces.map(w=>`<option value="${w.slug}">${w.name||w.slug}</option>`).join('');
+}
+function showPanel(name){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));event.target.classList.add('active');document.getElementById('panel-'+name).classList.add('active');if(name==='documents')loadDocuments()}
+async function loadDocuments(){
+  const slug=document.getElementById('ws-select').value;
+  if(!slug)return;
+  const tree=document.getElementById('doc-tree');
+  tree.innerHTML='<div class="loading"><div class="spinner"></div>加载文档中...</div>';
+  document.getElementById('doc-error').classList.remove('show');
+  try{const r=await fetch(API+'/api/documents?slug='+encodeURIComponent(slug));const d=await r.json();renderDocTree(d.documents||[],slug)}
+  catch(e){document.getElementById('doc-error').textContent='加载失败:'+e;document.getElementById('doc-error').classList.add('show');tree.innerHTML=''}
+}
+function renderDocTree(docs,slug){
+  const tree=document.getElementById('doc-tree');
+  if(!docs.length){tree.innerHTML='<div style="color:#94a3b8;padding:16px">该工作区暂无文档</div>';return}
+  tree.innerHTML=`<div style="margin-bottom:12px"><span class="badge">${slug}</span> <span style="color:#94a3b8;font-size:13px">${docs.length} 个文档</span></div>`+
+  '<ul class="item-list">'+docs.map(d=>`<li><div><span style="font-size:14px">📄</span> <strong>${d.name||d.filename||'未知'}</strong><div style="font-size:12px;color:#94a3b8;margin-top:2px">ID: ${d.documentId||d.id} | 大小: ${d.size||'N/A'}</div></div><button class="btn btn-danger btn-sm" onclick="deleteDoc('${slug}','${d.documentId||d.id}')">删除</button></li>`).join('')+'</ul>';
+}
+async function deleteDoc(slug,docId){
+  if(!confirm('确定删除此文档?'))return;
+  try{const r=await fetch(API+'/api/document/delete',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({workspaceId:slug,documentId:docId})});if(r.ok){alert('删除成功');loadDocuments()}else{alert('删除失败')}}
+  catch(e){alert('删除失败:'+e)}
+}
+loadWorkspaces();
+</script>
+</body>
+</html>
