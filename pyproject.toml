@@ -1,7 +1,7 @@
 [project]
 name = "anythingllm-mcp-server"
 version = "0.1.0"
-description = "MCP Server for AnythingLLM - query workspaces via MCP protocol 2026-07-28"
+description = "第一次更新：AnythingLLM MCP Server，基于 MCP 协议查询工作区"
 requires-python = ">=3.10"
 dependencies = [
     "mcp>=2.0.0",

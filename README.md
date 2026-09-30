@@ -1,4 +1,4 @@
-# AnythingLLM MCP Server
+# 第一次更新
 
 一个基于 MCP 协议 2026-07-28 的 Python MCP Server，桥接 AnythingLLM 的工作区能力。
 

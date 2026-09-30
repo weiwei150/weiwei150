@@ -1,4 +1,4 @@
-# AnythingLLM MCP Server MVP 开发计划
+# 第一次更新 MVP 开发计划
 
 ## 项目概述
 
