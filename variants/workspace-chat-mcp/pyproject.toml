@@ -1,0 +1,19 @@
+[project]
+name = "anythingllm-mcp-workspace-chat"
+version = "0.1.0"
+description = "Alternative AnythingLLM MCP server with workspace_chat"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp[cli]>=2.0.0",
+    "httpx>=0.27.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+anythingllm-workspace-chat-mcp = "workspace_chat_mcp.server:main"

@@ -50,6 +50,10 @@ anythingllm-mcp-server/
 └── README.md
 ```
 
+## 其他实现
+
+`variants/workspace-chat-mcp/` 提供另一套 AnythingLLM MCP 实现，使用 `workspace_chat` 工具，并支持通过环境变量选择工作区。
+
 ## 技术栈
 
 - MCP 协议 2026-07-28
