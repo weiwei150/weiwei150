@@ -1,0 +1,6 @@
+config.ini
+.venv/
+venv/
+.idea/
+__pycache__/
+*.py[cod]
