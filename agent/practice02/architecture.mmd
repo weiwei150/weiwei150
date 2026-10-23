@@ -1,0 +1,131 @@
+---
+title: file_agent.py 代码架构
+---
+flowchart TD
+    subgraph ENTRY["① 入口与配置层"]
+        CFG["config.ini<br/>[llm] base_url / model_name / api_key"]
+        CLIENT["OpenAI Client<br/>OpenAI(base_url, api_key)"]
+        SYS["SYSTEM_PROMPT<br/>行为约束与工具使用规范"]
+        MAIN["main()<br/>命令行 REPL 主循环"]
+    end
+
+    CFG --> CLIENT
+    CFG --> MAIN
+    SYS --> MAIN
+
+    subgraph SESSION["② 会话与流式解析层"]
+        MSG[("messages<br/>对话历史")]
+        CALL["chat.completions.create<br/>model · messages · tools · stream=True"]
+        PARSE["逐 chunk 解析 delta<br/>拼接 content 与 tool_calls"]
+        HAS{"本轮存在<br/>工具调用?"}
+        REPLY["打印并保存<br/>assistant 最终回复"]
+        AGG["按 tc.index 聚合<br/>id / name / arguments"]
+        ASST["追加 assistant 消息<br/>content + tool_calls"]
+    end
+
+    MAIN --> MSG
+    MSG --> CALL
+    CALL --> PARSE
+    PARSE --> HAS
+    HAS -- "否" --> REPLY
+    REPLY --> MSG
+    HAS -- "是" --> AGG
+    AGG --> ASST
+
+    subgraph DECLARE["③ 工具声明与注册层"]
+        TOOLS["tools: list[dict]<br/>11 个 function calling schema"]
+        HANDLERS["TOOL_HANDLERS: dict<br/>工具名 → 处理函数"]
+    end
+
+    TOOLS -.->|"随请求下发给模型"| CALL
+    HANDLERS -.->|"按 name 查找"| DISPATCH
+
+    subgraph DISPATCH_L["④ 工具分发层"]
+        DISPATCH["handle_tool_calls(tool_calls)"]
+        ARGS["json.loads(arguments)<br/>校验是否为 JSON 对象"]
+        VALID{"参数合法且<br/>工具已注册?"}
+        RESULT["统一 JSON 字符串<br/>success / error"]
+        TOOLMSG["构造 role=tool 消息<br/>携带 tool_call_id"]
+        PREVIEW["控制台打印<br/>调用参数与结果预览"]
+    end
+
+    ASST --> DISPATCH
+    DISPATCH --> ARGS
+    ARGS --> VALID
+    VALID -- "否" --> RESULT
+    VALID -- "是" --> IMPL["调用对应工具函数"]
+    IMPL --> RESULT
+    RESULT --> PREVIEW
+    PREVIEW --> TOOLMSG
+    TOOLMSG -->|"追加后再次请求模型"| MSG
+
+    subgraph TOOL_L["⑤ 工具实现层（11 个）"]
+        subgraph READ["只读 / 查询"]
+            T1["get_date()<br/>getDate"]
+            T2["get_current_directory()"]
+            T3["list_directory()"]
+            T4["get_file_type()"]
+            T5["read_text_file()"]
+        end
+        subgraph WRITE["创建 / 编辑"]
+            T6["create_file()"]
+            T7["edit_text_file()"]
+            T8["create_directory()"]
+        end
+        subgraph DANGER["删除 / 重命名（受保护）"]
+            T9["delete_directory()"]
+            T10["delete_file()"]
+            T11["rename_path()"]
+        end
+    end
+
+    IMPL --> READ
+    IMPL --> WRITE
+    IMPL --> DANGER
+
+    subgraph HELP["⑥ 公共辅助层"]
+        H1["_ok / _fail<br/>统一 JSON 返回"]
+        H2["_resolve<br/>相对路径 → 绝对路径"]
+        H3["_is_protected<br/>高危路径拦截"]
+        H4["_is_text_file / _decode_text<br/>文本判定与解码"]
+        H5["_read_text_file / _write_text_file<br/>UTF-8 读写"]
+        H6["_on_rm_error<br/>只读属性重试删除"]
+    end
+
+    READ -.-> H1
+    READ -.-> H2
+    READ -.-> H4
+    READ -.-> H5
+    WRITE -.-> H1
+    WRITE -.-> H2
+    WRITE -.-> H5
+    DANGER -.-> H1
+    DANGER -.-> H2
+    DANGER -.-> H3
+    DANGER -.-> H6
+
+    subgraph FS["⑦ 目标资源"]
+        DISK[("本地文件系统<br/>文件 / 目录")]
+    end
+
+    READ -.-> DISK
+    WRITE -.-> DISK
+    DANGER -.-> DISK
+
+    classDef config fill:#e3f2fd,stroke:#1565c0,color:#0d47a1
+    classDef session fill:#f3e5f5,stroke:#6a1b9a,color:#4a148c
+    classDef declare fill:#fff3e0,stroke:#ef6c00,color:#e65100
+    classDef dispatch fill:#e8f5e9,stroke:#2e7d32,color:#1b5e20
+    classDef tool fill:#e0f7fa,stroke:#00838f,color:#006064
+    classDef helper fill:#fce4ec,stroke:#ad1457,color:#880e4f
+    classDef danger fill:#ffebee,stroke:#c62828,color:#b71c1c
+    classDef disk fill:#eceff1,stroke:#546e7a,color:#263238
+
+    class CFG,CLIENT,SYS,MAIN config
+    class MSG,CALL,PARSE,HAS,REPLY,AGG,ASST session
+    class TOOLS,HANDLERS declare
+    class DISPATCH,ARGS,VALID,RESULT,TOOLMSG,PREVIEW,IMPL dispatch
+    class T1,T2,T3,T4,T5,T6,T7,T8,T11 tool
+    class T9,T10 danger
+    class H1,H2,H3,H4,H5,H6 helper
+    class DISK disk
