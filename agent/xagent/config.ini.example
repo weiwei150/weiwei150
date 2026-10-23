@@ -1,0 +1,10 @@
+[llm]
+base_url = https://api.deepseek.com
+model_name = deepseek-chat
+api_key = sk-your-key-here
+
+[agent]
+# 单次读取文件返回给模型的最大字符数
+max_read_chars = 20000
+# 单轮用户请求允许的最大工具调用轮数
+max_tool_rounds = 16

@@ -1,0 +1,103 @@
+Screen {
+    layout: vertical;
+    background: $surface;
+}
+
+Header {
+    background: $primary;
+    color: $text;
+}
+
+#chat {
+    height: 1fr;
+    padding: 1 2 0 2;
+    scrollbar-size-vertical: 1;
+}
+
+.message {
+    width: 100%;
+    height: auto;
+    margin: 0 0 1 0;
+    padding: 0 1;
+}
+
+.message .role {
+    height: 1;
+    color: $text-muted;
+    text-style: bold;
+}
+
+.user {
+    border-left: solid $accent;
+    background: $boost;
+}
+
+.assistant {
+    border-left: solid $success;
+}
+
+.tool {
+    border-left: solid $warning;
+    background: $panel;
+}
+
+.tool-ok {
+    border-left: solid $success;
+}
+
+.tool-error {
+    border-left: solid $error;
+}
+
+.meta {
+    border-left: solid $primary;
+    color: $text-muted;
+}
+
+.error {
+    border-left: solid $error;
+    background: $error 15%;
+}
+
+.body {
+    height: auto;
+}
+
+Markdown {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+}
+
+#status {
+    height: 1;
+    background: $panel;
+    padding: 0 2;
+}
+
+.status-state {
+    width: 26;
+}
+
+.status-model {
+    width: 32;
+}
+
+.status-directory {
+    width: 1fr;
+    color: $text-muted;
+}
+
+#prompt {
+    height: 3;
+    border: tall $primary;
+    margin: 0 2;
+}
+
+#prompt:focus {
+    border: tall $accent;
+}
+
+Footer {
+    background: $panel;
+}
