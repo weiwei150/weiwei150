@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from core import (
+import _bootstrap  # noqa: F401
+from xagent_core import (
     AgentSession,
     LLMDelta,
     ToolCallDelta,
@@ -18,9 +20,9 @@ from core import (
     build_default_registry,
     load_settings,
 )
-from core.events import RunFailed, RunFinished, ToolCallFinished, ToolCallStarted
-from core.tools.search import build_search_payload, parse_search_response
-from core.tools.web import extract_markdown
+from xagent_core.events import RunFailed, RunFinished, ToolCallFinished, ToolCallStarted
+from xagent_core.tools.search import build_search_payload, parse_search_response
+from xagent_core.tools.web import extract_markdown
 
 
 class ScriptedModel:
@@ -100,19 +102,146 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
             ToolContext(
                 base_dir=self.base,
                 max_read_chars=20_000,
+                allowed_commands=(Path(sys.executable).stem,),
                 search_api_key="test-qianfan-key",
             )
         )
 
     def test_registry_contents(self) -> None:
-        self.assertEqual(len(self.registry.names), 13)
+        self.assertEqual(len(self.registry.names), 14)
         self.assertEqual(self.registry.names[0], "get_date")
         self.assertIn("read_text_file", self.registry.names)
         self.assertIn("rename_path", self.registry.names)
+        self.assertIn("Runcli", self.registry.names)
         self.assertIn("searchweb", self.registry.names)
         self.assertIn("fet", self.registry.names)
         schemas = self.registry.specs()
         self.assertTrue(all(item["type"] == "function" for item in schemas))
+
+    def test_runcli_executes_program(self) -> None:
+        execution = self.registry.execute(
+            "Runcli",
+            {
+                "command": sys.executable,
+                "args": [
+                    "-c",
+                    "import sys; print('hello'); print('oops', file=sys.stderr)",
+                ],
+            },
+        )
+        self.assertTrue(execution.success, execution.content)
+        self.assertEqual(execution.payload["exitcode"], 0)
+        self.assertEqual(execution.payload["stdout"], "hello")
+        self.assertEqual(execution.payload["stderr"], "oops")
+
+    def test_runcli_rejects_program_outside_allowlist(self) -> None:
+        execution = self.registry.execute(
+            "Runcli",
+            {"command": "powershell", "args": ["-Command", "Write-Output denied"]},
+        )
+        self.assertFalse(execution.success)
+        self.assertIn("不在 Runcli 白名单中", execution.payload["error"])
+
+    def test_runcli_rejects_all_commands_when_allowlist_is_empty(self) -> None:
+        registry = build_default_registry(
+            ToolContext(base_dir=self.base, allowed_commands=())
+        )
+        execution = registry.execute(
+            "Runcli",
+            {"command": sys.executable, "args": ["--version"]},
+        )
+        self.assertFalse(execution.success)
+        self.assertIn("白名单为空", execution.payload["error"])
+
+    def test_runcli_uses_argument_list_without_shell(self) -> None:
+        completed = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=b"ok",
+            stderr=b"",
+        )
+        with patch("xagent_core.tools.cli.subprocess.run", return_value=completed) as run_mock:
+            execution = self.registry.execute(
+                "Runcli",
+                {
+                    "command": sys.executable,
+                    "args": ["-c", "print('hello')"],
+                },
+            )
+
+        self.assertTrue(execution.success, execution.content)
+        args, kwargs = run_mock.call_args
+        self.assertIsInstance(args[0], list)
+        self.assertEqual(args[0][0], sys.executable)
+        self.assertEqual(args[0][-2:], ["-c", "print('hello')"])
+        self.assertFalse(kwargs["shell"])
+        self.assertTrue(kwargs["capture_output"])
+
+    def test_runcli_truncates_long_output(self) -> None:
+        execution = self.registry.execute(
+            "Runcli",
+            {
+                "command": sys.executable,
+                "args": ["-c", "print('x' * 100)"],
+                "max_chars": 10,
+            },
+        )
+        self.assertTrue(execution.success, execution.content)
+        self.assertEqual(execution.payload["stdout"], "x" * 10)
+        self.assertTrue(execution.payload["stdout_truncated"])
+        self.assertFalse(execution.payload["stderr_truncated"])
+        self.assertEqual(execution.payload["stdout_total_chars"], 100)
+        self.assertTrue(execution.payload["truncated"])
+
+    def test_runcli_reports_nonzero_exit(self) -> None:
+        execution = self.registry.execute(
+            "Runcli",
+            {
+                "command": sys.executable,
+                "args": ["-c", "import sys; sys.exit(3)"],
+            },
+        )
+        self.assertFalse(execution.success)
+        self.assertEqual(execution.payload["exitcode"], 3)
+        self.assertIn("退出码 3", execution.payload["error"])
+
+    def test_runcli_rejects_invalid_args(self) -> None:
+        execution = self.registry.execute(
+            "Runcli",
+            {"command": sys.executable, "args": "--version"},
+        )
+        self.assertFalse(execution.success)
+        self.assertIn("字符串数组", execution.payload["error"])
+
+    def test_runcli_reports_missing_program(self) -> None:
+        registry = build_default_registry(
+            ToolContext(
+                base_dir=self.base,
+                allowed_commands=("xagent-command-that-does-not-exist",),
+            )
+        )
+        execution = registry.execute(
+            "Runcli",
+            {"command": "xagent-command-that-does-not-exist"},
+        )
+        self.assertFalse(execution.success)
+        self.assertIn("未找到可执行程序", execution.payload["error"])
+
+    def test_runcli_timeout(self) -> None:
+        execution = self.registry.execute(
+            "Runcli",
+            {
+                "command": sys.executable,
+                "args": ["-c", "import time; time.sleep(5)"],
+                "timeout": 1,
+            },
+        )
+        self.assertFalse(execution.success)
+        self.assertIn("超时", execution.payload["error"])
+        self.assertIsNone(execution.payload["exitcode"])
+        self.assertTrue(execution.payload["timed_out"])
+        self.assertIn("stdout", execution.payload)
+        self.assertIn("stderr", execution.payload)
 
     def test_config_reads_qianfan_api_key(self) -> None:
         config_path = self.base / "config.ini"
@@ -121,6 +250,8 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
             "base_url = https://example.com\n"
             "model_name = test-model\n"
             "api_key = test-llm-key\n"
+            "[agent]\n"
+            "allowed_commands = git, python.exe\n"
             "[search]\n"
             "baidu_qianfan_api_key = test-qianfan-key\n"
             "top_k = 7\n",
@@ -129,6 +260,7 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
         settings = load_settings(config_path)
         self.assertEqual(settings.search_api_key, "test-qianfan-key")
         self.assertEqual(settings.search_top_k, 7)
+        self.assertEqual(settings.allowed_commands, ("git", "python.exe"))
 
     def test_searchweb_argument_validation(self) -> None:
         missing = self.registry.execute("searchweb", {})
@@ -205,7 +337,7 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
             data=json.dumps(response, ensure_ascii=False).encode(),
             error=None,
         )
-        with patch("core.tools.search.request", return_value=completed) as request_mock:
+        with patch("xagent_core.tools.search.request", return_value=completed) as request_mock:
             execution = self.registry.execute(
                 "searchweb",
                 {"query": "  python   教程 ", "max_results": 2},
@@ -245,7 +377,7 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
             ).encode(),
             error=None,
         )
-        with patch("core.tools.search.request", return_value=completed):
+        with patch("xagent_core.tools.search.request", return_value=completed):
             execution = self.registry.execute("searchweb", {"query": "python"})
 
         self.assertFalse(execution.success)
@@ -264,7 +396,7 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
                 "The requested URL returned error: 401"
             ),
         )
-        with patch("core.tools.search.request", return_value=response):
+        with patch("xagent_core.tools.search.request", return_value=response):
             execution = self.registry.execute("searchweb", {"query": "python"})
 
         self.assertFalse(execution.success)
@@ -275,7 +407,7 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
 
     def test_searchweb_reports_invalid_json(self) -> None:
         completed = SimpleNamespace(data=b"not-json", error=None)
-        with patch("core.tools.search.request", return_value=completed):
+        with patch("xagent_core.tools.search.request", return_value=completed):
             execution = self.registry.execute("searchweb", {"query": "python"})
 
         self.assertFalse(execution.success)
@@ -287,7 +419,7 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
             data=json.dumps({"references": []}).encode(),
             error=None,
         )
-        with patch("core.tools.search.request", return_value=completed):
+        with patch("xagent_core.tools.search.request", return_value=completed):
             execution = self.registry.execute("searchweb", {"query": "python"})
 
         self.assertFalse(execution.success)
@@ -296,7 +428,7 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
 
     def test_searchweb_reports_network_failure(self) -> None:
         response = SimpleNamespace(data=b"", error="请求超时（超过 15 秒）")
-        with patch("core.tools.search.request", return_value=response):
+        with patch("xagent_core.tools.search.request", return_value=response):
             execution = self.registry.execute("searchweb", {"query": "python"})
 
         self.assertFalse(execution.success)
@@ -380,8 +512,8 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
             stdout=html,
             stderr=b"",
         )
-        with patch("core.tools.curl.find_curl", return_value="curl"), patch(
-            "core.tools.curl.subprocess.run", return_value=completed
+        with patch("xagent_core.tools.curl.find_curl", return_value="curl"), patch(
+            "xagent_core.tools.curl.subprocess.run", return_value=completed
         ) as run_mock:
             execution = self.registry.execute("fet", {"url": "example.com/article"})
 
@@ -398,8 +530,8 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(kwargs["capture_output"])
 
     def test_fet_handles_subprocess_timeout(self) -> None:
-        with patch("core.tools.curl.find_curl", return_value="curl"), patch(
-            "core.tools.curl.subprocess.run",
+        with patch("xagent_core.tools.curl.find_curl", return_value="curl"), patch(
+            "xagent_core.tools.curl.subprocess.run",
             side_effect=subprocess.TimeoutExpired(cmd=["curl"], timeout=20),
         ):
             execution = self.registry.execute("fet", {"url": "https://example.com"})
@@ -414,8 +546,8 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
             stdout=b"%PDF-1.7\x00binary data",
             stderr=b"",
         )
-        with patch("core.tools.curl.find_curl", return_value="curl"), patch(
-            "core.tools.curl.subprocess.run", return_value=completed
+        with patch("xagent_core.tools.curl.find_curl", return_value="curl"), patch(
+            "xagent_core.tools.curl.subprocess.run", return_value=completed
         ):
             execution = self.registry.execute("fet", {"url": "https://example.com/a.pdf"})
 
@@ -429,8 +561,8 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
             stdout=b"",
             stderr=b"",
         )
-        with patch("core.tools.curl.find_curl", return_value="curl"), patch(
-            "core.tools.curl.subprocess.run", return_value=completed
+        with patch("xagent_core.tools.curl.find_curl", return_value="curl"), patch(
+            "xagent_core.tools.curl.subprocess.run", return_value=completed
         ):
             execution = self.registry.execute("fet", {"url": "https://example.com/empty"})
 
@@ -444,8 +576,8 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
             stdout=b"",
             stderr=b"Could not resolve host",
         )
-        with patch("core.tools.curl.find_curl", return_value="curl"), patch(
-            "core.tools.curl.subprocess.run", return_value=completed
+        with patch("xagent_core.tools.curl.find_curl", return_value="curl"), patch(
+            "xagent_core.tools.curl.subprocess.run", return_value=completed
         ):
             execution = self.registry.execute("fet", {"url": "https://bad.invalid"})
 

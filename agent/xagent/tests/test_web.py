@@ -6,10 +6,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import _bootstrap  # noqa: F401
 from starlette.testclient import TestClient
-
-from core import LLMDelta, Settings
-from web.app import create_app
+from xagent_core import LLMDelta, Settings
+from xagent_server.app import create_app
 
 HEADERS = {"X-Session-Id": "test-session-123"}
 

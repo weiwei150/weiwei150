@@ -33,6 +33,7 @@ def create_session(
         ToolContext(
             base_dir=working_directory,
             max_read_chars=resolved_settings.max_read_chars,
+            allowed_commands=resolved_settings.allowed_commands,
             search_api_key=resolved_settings.search_api_key,
             search_endpoint=resolved_settings.search_endpoint,
             search_top_k=resolved_settings.search_top_k,

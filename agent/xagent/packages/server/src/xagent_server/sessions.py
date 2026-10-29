@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from core import AgentSession, ChatModel, Settings, create_session
+from xagent_core import AgentSession, ChatModel, Settings, create_session
 
 
 @dataclass

@@ -1,4 +1,4 @@
-"""TUI 启动入口：``python -m tui``。"""
+"""TUI 启动入口：``python -m xagent_tui``。"""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import argparse
 import sys
 from collections.abc import Sequence
 
-from core.config import ConfigError, load_settings
+from xagent_core.config import ConfigError, load_settings
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -27,7 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--version",
         action="version",
-        version="xagent 0.1.0",
+        version="xagent 0.2.0",
     )
     return parser
 

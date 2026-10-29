@@ -23,6 +23,7 @@ class ToolContext:
 
     base_dir: Path
     max_read_chars: int = 20_000
+    allowed_commands: tuple[str, ...] = ()
     search_api_key: str = ""
     search_endpoint: str = "https://qianfan.baidubce.com/v2/ai_search/web_search"
     search_top_k: int = 10

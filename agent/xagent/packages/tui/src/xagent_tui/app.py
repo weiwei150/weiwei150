@@ -1,6 +1,6 @@
 """Textual 前端。
 
-只依赖 ``core`` 暴露的 AgentSession 和事件，不直接访问 LLM 客户端或工具实现。
+只依赖 ``xagent_core`` 暴露的 AgentSession 和事件，不直接访问 LLM 客户端或工具实现。
 """
 
 from __future__ import annotations
@@ -12,9 +12,8 @@ from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.widgets import Footer, Header, Input
-
-from core import AgentSession, create_session
-from core.events import (
+from xagent_core import AgentSession, create_session
+from xagent_core.events import (
     RunFailed,
     RunFinished,
     TextDelta,

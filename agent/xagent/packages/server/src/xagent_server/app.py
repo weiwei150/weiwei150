@@ -21,9 +21,8 @@ from starlette.requests import Request
 from starlette.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
-
-from core import AgentEvent, ChatModel, Settings
-from core.events import (
+from xagent_core import AgentEvent, ChatModel, Settings
+from xagent_core.events import (
     RunFailed,
     RunFinished,
     RunStarted,

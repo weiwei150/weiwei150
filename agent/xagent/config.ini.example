@@ -8,3 +8,14 @@ api_key = sk-your-key-here
 max_read_chars = 20000
 # 单轮用户请求允许的最大工具调用轮数
 max_tool_rounds = 16
+# Runcli 允许执行的程序名，逗号分隔；留空时拒绝所有命令
+allowed_commands =
+
+[search]
+# 百度千帆 API Key，用于 searchweb 网络搜索
+# 获取方式：https://cloud.baidu.com/doc/qianfan-api/s/Wmbq4z7e5
+baidu_qianfan_api_key = your-qianfan-api-key
+# 搜索接口地址，通常无需修改
+endpoint = https://qianfan.baidubce.com/v2/ai_search/web_search
+# 默认返回的网页结果数量，范围 1~50
+top_k = 10

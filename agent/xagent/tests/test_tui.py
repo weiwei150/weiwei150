@@ -6,10 +6,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from core import AgentSession, LLMDelta, ToolContext, build_default_registry
-from tui.app import XAgentApp
-from tui.widgets import AssistantMessage, ChatView, PromptInput
-from tui.widgets.messages import SystemNotice
+import _bootstrap  # noqa: F401
+from xagent_core import AgentSession, LLMDelta, ToolContext, build_default_registry
+from xagent_tui.app import XAgentApp
+from xagent_tui.widgets import AssistantMessage, ChatView, PromptInput
+from xagent_tui.widgets.messages import SystemNotice
 
 
 class ChattyModel:

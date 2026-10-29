@@ -2,110 +2,113 @@
 
 基于 `D:\weiLLM\agent\practice02\file_agent.py` 改造的本地文件操作 Agent。
 
-核心目标是把**业务逻辑**与**界面展示**彻底分离：
+项目结构参考 OpenCode 的 packages 分层：核心、服务端、TUI 和 CLI 各自独立，通过公共包 API 组合。
 
-- `core/`：Agent 编排、LLM 访问、工具注册与执行、配置。完全不依赖任何 UI 框架，也不直接 `print`。
-- `tui/`：Textual 终端界面，只消费 `core` 暴露的异步事件流。
-- `web/`：Starlette Web 服务 + 原生浏览器前端，通过 SSE 消费同一套事件流。
-- 未来新增 `desktop/` 时，复用同一个 `core`，不需要修改 Agent 逻辑。
+- `xagent_core`：Agent 编排、Provider、工具注册与执行、配置和事件模型，不依赖任何 UI。
+- `xagent_server`：Starlette HTTP/SSE 服务端和浏览器静态资源。
+- `xagent_tui`：Textual 终端界面，只消费 `xagent_core` 的事件流。
+- `xagent_cli`：统一命令行入口，负责选择 TUI 或 Web。
+- 新增前端或工具时只依赖对应包的公共 API，不修改其他包内部实现。
 
 ## 目录结构
 
 ```text
 xagent/
-├── core/                       # 核心层（UI 无关）
-│   ├── __init__.py             # 公共 API 出口
-│   ├── agent.py                # AgentSession：对话状态机 + 事件流
-│   ├── config.py               # Settings / config.ini / 环境变量
-│   ├── events.py               # UI 无关的事件模型
-│   ├── factory.py              # 组合根：装配模型、工具、会话
-│   ├── llm.py                  # ChatModel 协议 + AsyncOpenAI 实现
-│   ├── models.py               # 工具调用 / 工具结果等领域对象
-│   ├── prompts.py              # 系统提示词
-│   └── tools/
-│       ├── base.py             # Tool、ToolContext、ToolRegistry
-│       ├── curl.py             # 本地 curl 调用与网络异常处理
-│       ├── filesystem.py       # 10 个文件 / 目录工具
-│       ├── helpers.py          # 路径、文本、JSON、安全保护
-│       ├── search.py           # 网络搜索工具 searchweb
-│       ├── system.py           # 时间查询工具
-│       └── web.py              # 网页正文抓取工具 fet
-├── tui/                        # Textual 表示层
-│   ├── __main__.py             # python -m tui
-│   ├── app.py                  # XAgentApp：事件 → 界面
-│   ├── commands.py             # 斜杠命令解析
-│   ├── styles.tcss             # Textual CSS
-│   └── widgets/
-│       ├── chat.py             # 消息容器与自动滚动
-│       ├── messages.py         # 用户 / 助手 / 工具 / 错误消息
-│       ├── prompt.py           # 带提示符与历史记录的输入栏
-│       ├── status.py           # 状态栏与 busy spinner
-│       └── welcome.py          # 启动欢迎面板
-├── web/                        # Starlette + 原生前端
-│   ├── __main__.py             # python -m web / xagent-web
-│   ├── app.py                  # 路由、SSE、会话 API
-│   ├── sessions.py             # WebSession / SessionStore
-│   └── static/
-│       ├── index.html          # 单页应用结构
-│       ├── styles.css          # 响应式 / 明暗主题
-│       ├── app.js              # SSE、Markdown、工具卡片、交互
-│       └── favicon.svg
-├── tests/                      # 无网络回归测试
-├── main.py                     # 统一启动入口
-├── config.ini                  # 本地配置（已 gitignore）
-├── config.ini.example          # 配置模板
-├── pyproject.toml
+├── packages/
+│   ├── core/
+│   │   └── src/xagent_core/        # 核心包（UI 无关）
+│   │       ├── __init__.py         # 公共 API 出口
+│   │       ├── agent.py            # AgentSession：状态机 + 事件流
+│   │       ├── config.py           # Settings / config.ini / 环境变量
+│   │       ├── events.py           # UI 无关事件模型
+│   │       ├── factory.py          # 组合根：Provider + 工具 + 会话
+│   │       ├── llm.py              # ChatModel 协议 + OpenAI 兼容实现
+│   │       ├── models.py           # 工具调用 / 结果等领域对象
+│   │       ├── prompts.py          # 系统提示词
+│   │       └── tools/
+│   │           ├── base.py         # Tool、ToolContext、ToolRegistry
+│   │           ├── cli.py          # Runcli
+│   │           ├── curl.py         # 本地 curl 封装
+│   │           ├── filesystem.py   # 文件 / 目录工具
+│   │           ├── helpers.py      # 路径、文本、JSON 辅助
+│   │           ├── search.py       # searchweb
+│   │           ├── system.py       # get_date
+│   │           └── web.py          # fet
+│   ├── server/
+│   │   └── src/xagent_server/      # HTTP / SSE 服务端
+│   │       ├── __main__.py         # python -m xagent_server / xagent-web
+│   │       ├── app.py              # 路由、SSE、会话 API
+│   │       ├── sessions.py         # WebSession / SessionStore
+│   │       └── static/             # 浏览器单页应用
+│   ├── tui/
+│   │   └── src/xagent_tui/         # Textual TUI
+│   │       ├── __main__.py         # python -m xagent_tui / xagent-tui
+│   │       ├── app.py              # 事件 → 界面
+│   │       ├── commands.py         # 斜杠命令
+│   │       ├── styles.tcss
+│   │       └── widgets/
+│   └── cli/
+│       └── src/xagent_cli/         # 统一 CLI 入口
+│           ├── __init__.py         # xagent --ui tui|web
+│           └── __main__.py
+├── tests/                          # 无网络回归测试
+├── main.py                         # 免安装启动入口
+├── config.ini                      # 本地配置（已 gitignore）
+├── config.ini.example              # 配置模板
+├── pyproject.toml                  # 统一的构建、依赖和入口点
 └── requirements.txt
 ```
 
 ## 分层与依赖规则
 
 ```text
-tui / web（及未来的 desktop）
-        │  只依赖 core 公共 API 和事件
-        ▼
-core/agent.py  ──►  core/llm.py  ──►  OpenAI 兼容接口
-        │
-        └────────►  core/tools  ──►  本地文件系统
+xagent_cli
+    ├── xagent_tui / xagent_server
+    │         │  只依赖 xagent_core 公共 API 和事件
+    │         ▼
+    └── xagent_core/agent.py ──► xagent_core/llm.py ──► OpenAI 兼容接口
+                │
+                └────────────► xagent_core/tools ──► 本地文件 / CLI / 网络
 
-core/factory.py 负责上述依赖的装配；core/config.py 提供配置。
+xagent_core/factory.py 负责依赖装配；xagent_core/config.py 提供配置。
 ```
 
 必须遵守的约束：
 
-1. `core` 不得导入 `tui`、`web`、`textual`、`starlette` 或任何界面 / Web 框架。
-2. `tui` 和 `web` 不直接访问 OpenAI 客户端、工具实现或文件系统，只通过 `AgentSession` 交互。
-3. `core` 通过事件流反馈进度，不直接输出到控制台，方便不同前端复用。
+1. `xagent_core` 不得导入 `xagent_tui`、`xagent_server`、`textual`、`starlette`。
+2. `xagent_tui` 和 `xagent_server` 不直接访问 LLM 客户端、工具实现或文件系统，只通过 `AgentSession` 交互。
+3. `xagent_core` 通过事件流反馈进度，不直接输出到控制台。
 4. 工具统一返回 JSON 字符串；异常在 `ToolRegistry` 内被转换为失败结果。
-5. 新增前端只依赖 `core` 的公共 API；新增工具只修改 `core/tools`。
+5. 新增前端只依赖 `xagent_core` 公共 API；新增工具只修改 `xagent_core/tools`。
 
 ## 架构图
 
 ```mermaid
 flowchart TB
     subgraph FRONT["前端适配层（可替换）"]
-        TUI["tui/ · Textual TUI"]
-        WEB["web/ · Starlette + SSE"]
-        DESKTOP["desktop/ · 规划中"]
+        TUI["xagent_tui<br/>Textual TUI"]
+        WEB["xagent_server<br/>Starlette + SSE"]
+        CLI["xagent_cli<br/>统一入口"]
     end
 
-    subgraph CORE["core 核心层（UI 无关）"]
+    subgraph CORE["xagent_core（UI 无关）"]
         API["AgentSession.send()<br/>AsyncIterator[AgentEvent]"]
         AGENT["agent.py<br/>会话状态机 / 工具循环"]
         LLM["llm.py<br/>ChatModel 协议"]
-        TOOLS["tools/<br/>ToolRegistry + 13 个工具"]
+        TOOLS["tools/<br/>ToolRegistry + 14 个工具"]
         CONFIG["config.py<br/>Settings"]
         FACTORY["factory.py<br/>组合根"]
     end
 
     subgraph EXT["外部资源"]
         APIEXT["OpenAI 兼容接口"]
-        FS["本地文件系统"]
+        FS["本地文件 / CLI / 网络"]
     end
 
+    CLI --> TUI
+    CLI --> WEB
     TUI --> API
     WEB --> API
-    DESKTOP --> API
 
     API --> AGENT
     AGENT --> LLM --> APIEXT
@@ -146,15 +149,21 @@ AgentSession.send(prompt)
 
 ```bash
 cd agent/xagent
-pip install -r requirements.txt
+pip install -e .
 ```
 
-也可以安装为命令：
+安装后会注册三个命令：
 
 ```bash
-pip install -e .
-xagent        # TUI
-xagent-web    # Web UI
+xagent          # 统一入口，默认 TUI
+xagent-tui      # 仅 TUI
+xagent-web      # 仅 Web UI
+```
+
+也可以不安装，直接使用根目录的 `main.py`（会自动把 `packages/*/src` 加入 `sys.path`）：
+
+```bash
+python main.py
 ```
 
 ## 配置
@@ -174,6 +183,7 @@ api_key = sk-your-key-here
 [agent]
 max_read_chars = 20000
 max_tool_rounds = 16
+allowed_commands =
 
 [search]
 baidu_qianfan_api_key = your-qianfan-api-key
@@ -212,21 +222,27 @@ top_k = 10
 TUI（默认）：
 
 ```bash
+xagent
+# 或
+xagent-tui
+# 或直接运行源码
 python main.py
 # 或
-python -m tui
+python -m xagent_tui
 # 指定配置文件 / 工作目录
-python main.py --config .\config.ini --directory D:\weillm\test
+xagent --config .\config.ini --directory D:\weillm\test
 ```
 
 Web UI：
 
 ```bash
-python main.py --ui web
+xagent --ui web
 # 或
-python -m web
+xagent-web
+# 或
+python -m xagent_server
 # 指定端口 / 不自动打开浏览器
-python -m web --port 8001 --no-open
+xagent-web --port 8001 --no-open
 ```
 
 Web 默认监听 `127.0.0.1:8000`，启动后会自动打开浏览器。相对路径以**启动时的工作目录**（或 `--directory` 指定目录）为基准。`get_current_directory` 返回同一个基准目录。
@@ -257,6 +273,8 @@ Web 默认监听 `127.0.0.1:8000`，启动后会自动打开浏览器。相对�
 打开 https://example.com 并总结主要内容
 搜索 Python 最新版本，并打开官网确认
 搜索“人工智能 最新进展”，列出三条结果
+运行 git --version 查看版本
+用 Runcli 执行 ffmpeg -version
 ```
 
 ### 快捷键
@@ -282,7 +300,7 @@ Web 默认监听 `127.0.0.1:8000`，启动后会自动打开浏览器。相对�
 
 ## Web 使用
 
-Web 界面复用同一个 `core`，不需要单独维护 Agent 逻辑。启动后：
+Web 界面复用同一个 `xagent_core`，不需要单独维护 Agent 逻辑。启动后：
 
 - 流式显示模型回复，支持 Markdown、代码块复制。
 - 工具调用显示为可折叠卡片，包含参数、结果和成功 / 失败状态。
@@ -325,11 +343,12 @@ Web 界面复用同一个 `core`，不需要单独维护 Agent 逻辑。启动�
 
 ## 工具
 
-工具名统一使用 `snake_case`。与 `practice02` 相比，`getDate` 更名为 `get_date`，并改为返回 JSON。
+工具名通常使用 `snake_case`（按要求新增的 `Runcli` 除外）。与 `practice02` 相比，`getDate` 更名为 `get_date`，并改为返回 JSON。
 
 | 工具名 | 参数 | 说明 |
 | --- | --- | --- |
 | `get_date` | 无 | 获取当前日期时间 |
+| `Runcli` | `command`、`args`、`cwd`、`stdin`、`timeout`、`max_chars` | 调用本地已安装的 CLI，返回退出码、stdout 和 stderr |
 | `searchweb` | `query`、`max_results`、`timeout` | 调用百度千帆搜索 API，返回搜索摘要、来源标题和 URL，供模型挑选后再用 `fet` 获取正文 |
 | `fet` | `url`、`max_chars`、`timeout` | 调用本地 curl 获取 HTML，用 trafilatura 提取正文并转为 Markdown，保留标题、段落、列表、表格和链接，去除导航、广告、页脚 |
 | `get_current_directory` | 无 | 获取工作目录绝对路径 |
@@ -342,6 +361,32 @@ Web 界面复用同一个 `core`，不需要单独维护 Agent 逻辑。启动�
 | `delete_directory` | `path` | 递归删除目录 |
 | `delete_file` | `path` | 删除文件 |
 | `rename_path` | `source`、`destination`、`overwrite` | 重命名 / 移动文件或目录 |
+
+`Runcli` 只允许运行 `[agent] allowed_commands` 中列出的程序名，多个名称用逗号分隔；留空时默认拒绝所有命令。程序名匹配不区分大小写，也可传入白名单程序的完整路径。`args` 必须是字符串数组，使用 `shell=False`，不支持管道、重定向、通配符展开等 shell 语法。白名单限制程序名，不是操作系统级安全沙箱；列入白名单的程序仍可按自身能力读写文件或访问网络。
+
+默认执行超时为 30 秒，单次调用最多可设为 300 秒，超时后进程会被终止。stdout 默认最多返回 `max_read_chars` 个字符，stderr 最多返回 10,000 个字符；超出时截断，并通过 `stdout_truncated`、`stderr_truncated` 和总长度字段标明截断情况。
+
+执行结束后始终向模型返回 `exitcode`、`stdout`、`stderr` 和 `timed_out`，便于模型判断下一步操作：
+
+```json
+{
+  "success": false,
+  "error": "命令执行失败（退出码 1）",
+  "exitcode": 1,
+  "timed_out": false,
+  "command": ["C:\\Program Files\\Git\\cmd\\git.EXE", "status"],
+  "cwd": "D:\\weillm\\agent\\xagent",
+  "stdout": "On branch main",
+  "stderr": "fatal: not a git repository",
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_total_chars": 14,
+  "stderr_total_chars": 38,
+  "truncated": false
+}
+```
+
+stdout 超过 `max_read_chars` 时截断并返回 `stdout_truncated: true`，同时通过 `stdout_total_chars` / `stderr_total_chars` 给出原始字符数；任一输出被截断时 `truncated` 为 `true`。退出码非 0 时返回 `success: false`，但仍会带上 stdout 和 stderr。Windows 上 `.cmd` / `.bat` 会由系统命令解释器执行，参数中的 `&`、`|` 等特殊字符可能被解释，调用这类脚本时需谨慎。
 
 `searchweb` 调用百度千帆「百度搜索」API（`POST /v2/ai_search/web_search`），默认返回配置中 `search.top_k` 条结果（工具调用时最多 10 条），每条包含 `title`、`url`、`snippet`，有发布时间时还会返回 `date`。结果会按 URL 去重并过滤非 http/https 链接。建议让模型根据摘要挑选结果后再调用 `fet` 读取正文。
 
@@ -383,10 +428,10 @@ Web 界面复用同一个 `core`，不需要单独维护 Agent 逻辑。启动�
 
 ### 新增工具
 
-在 `core/tools/` 中实现处理器并注册即可，`agent.py` 和 `tui` 无需改动：
+在 `packages/core/src/xagent_core/tools/` 中实现处理器并注册即可，`agent.py` 和前端无需改动：
 
 ```python
-from core.tools import Tool, ToolContext, ToolRegistry
+from xagent_core.tools import Tool, ToolContext, ToolRegistry
 
 def hello(context: ToolContext, arguments: dict) -> str:
     return '{"success": true, "message": "hello"}'
@@ -408,13 +453,13 @@ registry.register(
 - 返回 JSON 字符串，且包含 `success`；
 - 抛出异常也可以，`ToolRegistry` 会转换为失败 JSON。
 
-## 前端如何复用 core
+## 前端如何复用 xagent_core
 
-UI 层与 `core` 的契约只有一个异步事件流。`web/app.py` 就是按下面的方式接入的：
+UI 层与 `xagent_core` 的契约只有一个异步事件流。`xagent_server/app.py` 就是按下面的方式接入的：
 
 ```python
-from core import create_session
-from core.events import RunFinished, TextDelta, ToolCallFinished, ToolCallStarted
+from xagent_core import create_session
+from xagent_core.events import RunFinished, TextDelta, ToolCallFinished, ToolCallStarted
 
 session = create_session()  # 每个浏览器会话一个实例
 
@@ -433,16 +478,16 @@ async for event in session.send(user_text):
 浏览器
   │ POST /api/chat + X-Session-Id
   ▼
-web/app.py ──► SessionStore ──► AgentSession.send()
-  │                                  │
-  │◄──────────── SSE 事件 ───────────┘
+xagent_server/app.py ──► SessionStore ──► AgentSession.send()
+  │                                             │
+  │◄────────────── SSE 事件 ────────────────────┘
   ▼
-web/static/app.js（流式文本 / 工具卡片 / Markdown）
+xagent_server/static/app.js（流式文本 / 工具卡片 / Markdown）
 ```
 
 事件映射：
 
-| `core` 事件 | SSE 事件 | 前端行为 |
+| `xagent_core` 事件 | SSE 事件 | 前端行为 |
 | --- | --- | --- |
 | `RunStarted` | `started` | 确认用户消息，进入 busy |
 | `TextDelta` | `text` | 追加流式文本 |
@@ -457,7 +502,7 @@ web/static/app.js（流式文本 / 工具卡片 / Markdown）
 | --- | --- |
 | Web（已实现） | `starlette` + `POST /api/chat` SSE；浏览器原生 `fetch` 读取流 |
 | Desktop（PySide6 / Electron / PyWebView） | 在后台 asyncio 线程运行事件循环，把事件转换为 Qt Signal / IPC 消息 |
-| 其他 CLI | 实现新的 `cli/` 包，按事件打印即可 |
+| 其他 CLI | 新增 `packages/<name>/src` 包，按事件打印即可 |
 | 测试 | 注入实现 `ChatModel.stream()` 的假模型，无需网络 |
 
 注意：`AgentSession` 持有对话历史，每个用户 / 会话应独立创建，不要跨并发请求共享。
@@ -474,8 +519,9 @@ web/static/app.js（流式文本 / 工具卡片 / Markdown）
 | 二进制检测 | 检查前 8192 字节是否含空字节 |
 | 只读文件兼容 | Windows 下删除失败时先移除只读属性再重试 |
 | 读取上限 | 超出 `max_read_chars` 截断并返回 `truncated: true` |
+| 命令执行 | `Runcli` 默认拒绝所有命令，只允许运行 `[agent] allowed_commands` 中列出的程序；参数以列表传递并使用 `shell=False` |
 
-这些保护用于减少误操作，**不是安全沙箱**。Agent 仍能访问当前用户有权访问的路径。
+这些保护用于减少误操作，**不是安全沙箱**。Agent 仍能访问当前用户有权访问的路径；配置白名单中的程序也以运行 xAgent 的当前用户权限执行。
 
 ### Web 安全边界
 
@@ -489,7 +535,7 @@ web/static/app.js（流式文本 / 工具卡片 / Markdown）
 
 | practice02 | xagent | 说明 |
 | --- | --- | --- |
-| 单文件 `file_agent.py` | `core/` + `tui/` | 业务与界面分离 |
+| 单文件 `file_agent.py` | `packages/core` + `packages/tui` | 业务与界面分离 |
 | 同步 OpenAI 客户端 | `AsyncOpenAI` | 适配 TUI 及未来 Web |
 | `print` 输出过程 | `AgentEvent` 事件流 | 前端自行决定如何展示 |
 | 内嵌 `TOOL_HANDLERS` | `ToolRegistry` | 注册、校验、异常隔离集中管理 |
@@ -509,7 +555,7 @@ python -m unittest discover -s tests -v
 
 ```bash
 python -m ruff check .
-python -m compileall -q core tui web tests main.py
+python -m compileall -q packages tests main.py
 ```
 
 ## 已知限制
@@ -524,6 +570,7 @@ python -m compileall -q core tui web tests main.py
 - `fet` 依赖本地 `curl` 只抓取静态 HTML，不执行 JavaScript；需要登录、验证码或被反爬策略拦截的页面可能无法获取正文。
 - `fet` 的正文提取效果由 trafilatura 决定，极简页面或非文章型页面可能提取不到内容。
 - `searchweb` 依赖百度千帆 API 的免费额度和计费规则；未配置 API Key、额度耗尽或鉴权失败时会返回结构化错误。
+- `Runcli` 的命令白名单只限制可执行文件名，不限制该程序的参数或权限；仅将确有需要且可信的程序加入 `[agent] allowed_commands`。
 
 ## 常见问题
 
@@ -531,13 +578,13 @@ python -m compileall -q core tui web tests main.py
 确认 `config.ini` 存在且包含 `[llm]` 段，或使用 `--config` / `XAGENT_CONFIG` 指定路径。
 
 **`ModuleNotFoundError: No module named 'textual'`**
-执行 `pip install -r requirements.txt`。
+执行 `pip install -e .`。
 
 **`Error code: 401` / `402`**
 检查 `api_key`；402 表示账户余额不足。
 
 **Web 端口被占用**
-换一个端口：`python -m web --port 8001`。
+换一个端口：`xagent-web --port 8001`。
 
 **浏览器没有自动打开**
 直接访问终端打印的地址，或去掉 `--no-open` 后重试；远程 / 无桌面环境请加 `--no-open`。

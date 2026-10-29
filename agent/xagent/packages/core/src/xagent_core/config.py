@@ -11,7 +11,17 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+def _find_project_root() -> Path:
+    """从当前模块向上查找项目根目录（含 pyproject.toml 或 config.ini）。"""
+
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "pyproject.toml").is_file() or (parent / "config.ini").is_file():
+            return parent
+    return Path.cwd()
+
+
+PROJECT_ROOT = _find_project_root()
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config.ini"
 
 DEFAULT_MAX_READ_CHARS = 20_000
@@ -33,6 +43,7 @@ class Settings:
     api_key: str
     max_read_chars: int = DEFAULT_MAX_READ_CHARS
     max_tool_rounds: int = DEFAULT_MAX_TOOL_ROUNDS
+    allowed_commands: tuple[str, ...] = ()
     search_api_key: str = ""
     search_endpoint: str = DEFAULT_SEARCH_ENDPOINT
     search_top_k: int = DEFAULT_SEARCH_TOP_K
@@ -94,6 +105,11 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
 
     max_read_chars = parser.getint("agent", "max_read_chars", fallback=DEFAULT_MAX_READ_CHARS)
     max_tool_rounds = parser.getint("agent", "max_tool_rounds", fallback=DEFAULT_MAX_TOOL_ROUNDS)
+    allowed_commands = tuple(
+        command.strip()
+        for command in parser.get("agent", "allowed_commands", fallback="").split(",")
+        if command.strip()
+    )
     if max_read_chars <= 0:
         raise ConfigError("agent.max_read_chars 必须是正整数")
     if max_tool_rounds <= 0:
@@ -121,6 +137,7 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
         api_key=api_key,
         max_read_chars=max_read_chars,
         max_tool_rounds=max_tool_rounds,
+        allowed_commands=allowed_commands,
         search_api_key=search_api_key,
         search_endpoint=search_endpoint,
         search_top_k=search_top_k,

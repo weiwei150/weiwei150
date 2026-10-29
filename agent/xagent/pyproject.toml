@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xagent"
-version = "0.1.0"
-description = "A local file-operation agent with a UI-agnostic core, Textual TUI, and Web UI."
+version = "0.2.0"
+description = "A local tool-calling agent with a Python packages layout, TUI, and Web UI."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -19,11 +19,18 @@ dependencies = [
 ]
 
 [project.scripts]
-xagent = "tui.__main__:main"
-xagent-web = "web.__main__:main"
+xagent = "xagent_cli:main"
+xagent-tui = "xagent_tui.__main__:main"
+xagent-web = "xagent_server.__main__:main"
 
 [tool.setuptools.packages.find]
-include = ["core*", "tui*", "web*"]
+where = [
+    "packages/core/src",
+    "packages/server/src",
+    "packages/tui/src",
+    "packages/cli/src",
+]
 
 [tool.setuptools.package-data]
-web = ["static/*"]
+xagent_server = ["static/*"]
+xagent_tui = ["styles.tcss"]
