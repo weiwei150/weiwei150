@@ -16,6 +16,8 @@ DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config.ini"
 
 DEFAULT_MAX_READ_CHARS = 20_000
 DEFAULT_MAX_TOOL_ROUNDS = 16
+DEFAULT_SEARCH_ENDPOINT = "https://qianfan.baidubce.com/v2/ai_search/web_search"
+DEFAULT_SEARCH_TOP_K = 10
 
 
 class ConfigError(RuntimeError):
@@ -31,6 +33,9 @@ class Settings:
     api_key: str
     max_read_chars: int = DEFAULT_MAX_READ_CHARS
     max_tool_rounds: int = DEFAULT_MAX_TOOL_ROUNDS
+    search_api_key: str = ""
+    search_endpoint: str = DEFAULT_SEARCH_ENDPOINT
+    search_top_k: int = DEFAULT_SEARCH_TOP_K
     config_path: Path | None = None
 
 
@@ -94,11 +99,30 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
     if max_tool_rounds <= 0:
         raise ConfigError("agent.max_tool_rounds 必须是正整数")
 
+    search_api_key = (
+        _first_env("XAGENT_QIANFAN_API_KEY", "XAGENT_SEARCH_API_KEY")
+        # 优先读取 [search] baidu_qianfan_api_key，兼容旧配置名 api_key
+        or parser.get("search", "baidu_qianfan_api_key", fallback="")
+        or parser.get("search", "api_key", fallback="")
+    ).strip()
+    search_endpoint = (
+        _first_env("XAGENT_SEARCH_ENDPOINT")
+        or parser.get("search", "endpoint", fallback=DEFAULT_SEARCH_ENDPOINT)
+    ).strip()
+    search_top_k = parser.getint("search", "top_k", fallback=DEFAULT_SEARCH_TOP_K)
+    if not 1 <= search_top_k <= 50:
+        raise ConfigError("search.top_k 必须是 1~50 之间的整数")
+    if not search_endpoint:
+        raise ConfigError("search.endpoint 不能为空")
+
     return Settings(
         base_url=base_url,
         model_name=model_name,
         api_key=api_key,
         max_read_chars=max_read_chars,
         max_tool_rounds=max_tool_rounds,
+        search_api_key=search_api_key,
+        search_endpoint=search_endpoint,
+        search_top_k=search_top_k,
         config_path=path,
     )

@@ -8,16 +8,19 @@ from .messages import (
     ToolCallMessage,
     UserMessage,
 )
-from .prompt import PromptInput
+from .prompt import PromptBar, PromptInput
 from .status import StatusBar
+from .welcome import WelcomePanel
 
 __all__ = [
     "AssistantMessage",
     "ChatView",
     "ErrorNotice",
+    "PromptBar",
     "PromptInput",
     "StatusBar",
     "SystemNotice",
     "ToolCallMessage",
     "UserMessage",
+    "WelcomePanel",
 ]

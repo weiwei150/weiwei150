@@ -154,6 +154,20 @@ def on_rm_error(func, path, exc_info) -> None:
         pass
 
 
+def positive_int(value: object, default: int, maximum: int) -> int:
+    """把模型传入的整数参数限制在 (0, maximum] 范围内。"""
+
+    if value is None or value == "":
+        return default
+    try:
+        number = int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return default
+    if number <= 0:
+        return default
+    return min(number, maximum)
+
+
 def as_bool(value: object, default: bool = False) -> bool:
     """把模型传入的布尔值做一次严格解析，避免 bool("false") 为 True。"""
 

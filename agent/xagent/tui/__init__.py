@@ -1,6 +1,6 @@
 """xagent 的 Textual 前端包。
 
-未来可以并列增加 ``web``、``desktop`` 包，它们复用 ``core``，互不依赖。
+``web`` 包与它并列复用 ``core``；未来新增 ``desktop`` 也遵循同样的依赖规则。
 """
 
 __all__: list[str] = []

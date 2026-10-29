@@ -5,16 +5,25 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "xagent"
 version = "0.1.0"
-description = "A local file-operation agent with a UI-agnostic core and a Textual TUI."
+description = "A local file-operation agent with a UI-agnostic core, Textual TUI, and Web UI."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "lxml>=6.0",
+    "lxml_html_clean>=0.4",
     "openai>=1.30,<4",
+    "starlette>=0.37,<2",
     "textual>=0.80,<9",
+    "trafilatura>=2.0,<3",
+    "uvicorn>=0.30,<1",
 ]
 
 [project.scripts]
 xagent = "tui.__main__:main"
+xagent-web = "web.__main__:main"
 
 [tool.setuptools.packages.find]
-include = ["core*", "tui*"]
+include = ["core*", "tui*", "web*"]
+
+[tool.setuptools.package-data]
+web = ["static/*"]

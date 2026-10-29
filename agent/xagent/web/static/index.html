@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#080b10">
+  <title>XAgent · 本地文件操作 Agent</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="app">
+    <button class="scrim" id="scrim" type="button" aria-label="关闭侧栏"></button>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">✦</div>
+        <div>
+          <div class="brand-name">XAGENT</div>
+          <div class="brand-sub">local file agent</div>
+        </div>
+      </div>
+
+      <div class="side-section">
+        <div class="side-label">会话上下文</div>
+        <div class="info-card">
+          <div class="info-row">
+            <span>模型</span>
+            <strong id="modelName">—</strong>
+          </div>
+          <div class="info-row">
+            <span>目录</span>
+            <strong class="path" id="cwd" title="">—</strong>
+          </div>
+          <div class="info-row">
+            <span>工具</span>
+            <strong id="toolCount">—</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="side-section">
+        <div class="side-label">快捷指令</div>
+        <div class="side-examples">
+          <button class="side-example" type="button" data-prompt="列出当前目录下的所有文件">
+            <span class="side-example-icon">▤</span>
+            <span>列出当前目录</span>
+            <span class="side-arrow">↗</span>
+          </button>
+          <button class="side-example" type="button" data-prompt="读取 README.md 的内容，并概括重点">
+            <span class="side-example-icon">◇</span>
+            <span>读取 README.md</span>
+            <span class="side-arrow">↗</span>
+          </button>
+          <button class="side-example" type="button" data-prompt="创建一个 notes.md，内容写“今日待办”">
+            <span class="side-example-icon">＋</span>
+            <span>创建 notes.md</span>
+            <span class="side-arrow">↗</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="side-footer">
+        <div class="side-status">
+          <span class="local-dot"></span>
+          <span>工具在本机执行 · 密钥不出服务端</span>
+        </div>
+        <div class="side-hint">
+          <kbd>Enter</kbd> 发送
+          <span>·</span>
+          <kbd>Shift</kbd> + <kbd>Enter</kbd> 换行
+        </div>
+        <div class="side-hint">
+          <kbd>Esc</kbd> 停止生成
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-btn menu-btn" id="menuBtn" type="button" aria-label="打开侧栏">
+            <span></span><span></span><span></span>
+          </button>
+          <div class="status-pill" id="statusPill" data-kind="idle">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span id="statusText">正在连接</span>
+          </div>
+          <span class="topbar-divider" aria-hidden="true"></span>
+          <span class="topbar-model" id="topModel">—</span>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn" id="themeBtn" type="button" title="切换明暗主题" aria-label="切换明暗主题">◐</button>
+          <button class="ghost-btn" id="newChatBtn" type="button">
+            <span aria-hidden="true">＋</span>
+            <span>新会话</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="chat" id="chat" role="log" aria-live="polite" aria-label="对话记录">
+        <div class="welcome" id="welcome">
+          <div class="welcome-glow" aria-hidden="true"></div>
+          <div class="welcome-inner">
+            <div class="welcome-badge">✦ &nbsp;XAGENT</div>
+            <h1>把文件操作，<br><span>交给对话。</span></h1>
+            <p class="welcome-copy">
+              读取、创建、编辑、整理本地文件。描述你想做的事，Agent 会调用工具完成。
+            </p>
+
+            <div class="welcome-grid">
+              <button class="welcome-example" type="button" data-prompt="列出当前目录下的所有文件，并说明它们分别是什么">
+                <span class="welcome-example-icon">▤</span>
+                <span class="welcome-example-title">看看目录里有什么</span>
+                <span class="welcome-example-sub">列出当前目录下的所有文件</span>
+                <span class="welcome-example-arrow">↗</span>
+              </button>
+              <button class="welcome-example" type="button" data-prompt="读取 README.md 的内容，并概括重点">
+                <span class="welcome-example-icon">◇</span>
+                <span class="welcome-example-title">理解一份文档</span>
+                <span class="welcome-example-sub">读取 README.md 并概括重点</span>
+                <span class="welcome-example-arrow">↗</span>
+              </button>
+              <button class="welcome-example" type="button" data-prompt="创建一个 notes.md，内容写“今日待办”">
+                <span class="welcome-example-icon">＋</span>
+                <span class="welcome-example-title">新建一个文件</span>
+                <span class="welcome-example-sub">创建 notes.md，写入一段内容</span>
+                <span class="welcome-example-arrow">↗</span>
+              </button>
+              <button class="welcome-example" type="button" data-prompt="把 notes.md 里的“今日待办”替换成“今日完成”">
+                <span class="welcome-example-icon">≈</span>
+                <span class="welcome-example-title">批量修改文本</span>
+                <span class="welcome-example-sub">替换 notes.md 中的指定文字</span>
+                <span class="welcome-example-arrow">↗</span>
+              </button>
+            </div>
+
+            <div class="welcome-meta">
+              <span class="welcome-meta-item"><span class="mini-dot"></span><span id="welcomeModel">—</span></span>
+              <span class="welcome-meta-sep">/</span>
+              <span class="welcome-meta-item path" id="welcomeCwd">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="messages" id="messages"></div>
+      </section>
+
+      <div class="composer-wrap">
+        <button class="scroll-bottom" id="scrollBottom" type="button" aria-label="回到底部" title="回到底部">↓</button>
+        <form class="composer" id="composer" autocomplete="off">
+          <div class="composer-inner">
+            <textarea
+              id="input"
+              rows="1"
+              placeholder="输入指令，描述你想对文件做什么…"
+              aria-label="输入指令"
+              spellcheck="false"
+            ></textarea>
+            <button class="send-btn" id="sendBtn" type="submit" aria-label="发送">
+              <span id="sendIcon">↑</span>
+            </button>
+          </div>
+          <div class="composer-meta">
+            <span><kbd>Enter</kbd> 发送 · <kbd>Shift</kbd> + <kbd>Enter</kbd> 换行</span>
+            <span class="stream-hint" id="streamHint"></span>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <noscript>
+    <div class="noscript">xagent Web UI 需要启用 JavaScript。</div>
+  </noscript>
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -6,13 +6,20 @@ Screen {
 Header {
     background: $primary;
     color: $text;
+    text-style: bold;
 }
 
 #chat {
     height: 1fr;
     padding: 1 2 0 2;
     scrollbar-size-vertical: 1;
+    scrollbar-background: $surface;
+    scrollbar-color: $primary 40%;
 }
+
+/* ------------------------------------------------------------------ */
+/* 消息卡片                                                           */
+/* ------------------------------------------------------------------ */
 
 .message {
     width: 100%;
@@ -21,46 +28,51 @@ Header {
     padding: 0 1;
 }
 
-.message .role {
+.role {
     height: 1;
-    color: $text-muted;
+    width: 100%;
+}
+
+.role-name {
+    width: 1fr;
     text-style: bold;
 }
 
-.user {
-    border-left: solid $accent;
-    background: $boost;
-}
-
-.assistant {
-    border-left: solid $success;
-}
-
-.tool {
-    border-left: solid $warning;
-    background: $panel;
-}
-
-.tool-ok {
-    border-left: solid $success;
-}
-
-.tool-error {
-    border-left: solid $error;
-}
-
-.meta {
-    border-left: solid $primary;
+.role-time {
+    width: auto;
     color: $text-muted;
-}
-
-.error {
-    border-left: solid $error;
-    background: $error 15%;
 }
 
 .body {
     height: auto;
+}
+
+.user {
+    border-left: thick $accent;
+    background: $accent 8%;
+}
+
+.user .role-name {
+    color: $accent;
+}
+
+.assistant {
+    border-left: thick $success;
+}
+
+.assistant .role-name {
+    color: $success;
+}
+
+.meta {
+    border-left: thick $primary;
+    color: $text-muted;
+}
+
+.error {
+    border-left: thick $error;
+    background: $error 12%;
+    color: $error;
 }
 
 Markdown {
@@ -69,18 +81,147 @@ Markdown {
     background: transparent;
 }
 
+/* ------------------------------------------------------------------ */
+/* 工具调用卡片                                                       */
+/* ------------------------------------------------------------------ */
+
+.tool {
+    border-left: thick $warning;
+    background: $panel;
+}
+
+.tool-ok {
+    border-left: thick $success;
+}
+
+.tool-error {
+    border-left: thick $error;
+}
+
+.tool-header {
+    height: 1;
+    text-style: bold;
+}
+
+.tool-pending .tool-header {
+    color: $warning;
+}
+
+.tool-ok .tool-header {
+    color: $success;
+}
+
+.tool-error .tool-header {
+    color: $error;
+}
+
+.tool-summary {
+    height: auto;
+    color: $text-muted;
+}
+
+.tool-ok .tool-summary {
+    color: $text;
+}
+
+.tool-error .tool-summary {
+    color: $error;
+}
+
+.tool-details {
+    border-top: none;
+    background: transparent;
+    padding: 0;
+}
+
+.tool-details > Contents {
+    padding: 0;
+}
+
+.tool-detail {
+    height: auto;
+    color: $text-muted;
+}
+
+/* ------------------------------------------------------------------ */
+/* 欢迎面板                                                           */
+/* ------------------------------------------------------------------ */
+
+.welcome {
+    width: 100%;
+    height: auto;
+    margin: 0 0 1 0;
+    padding: 1 2;
+    border: round $primary 50%;
+    background: $panel;
+}
+
+.welcome-title {
+    height: 1;
+    color: $accent;
+    text-style: bold;
+}
+
+.welcome-subtitle {
+    height: auto;
+    color: $text-muted;
+}
+
+.welcome-rule {
+    height: 1;
+    margin: 1 0;
+    border-bottom: solid $primary 30%;
+}
+
+.welcome-row {
+    height: auto;
+    width: 100%;
+}
+
+.welcome-label {
+    width: 10;
+    color: $text-muted;
+}
+
+.welcome-value {
+    width: 1fr;
+    color: $text;
+}
+
+/* ------------------------------------------------------------------ */
+/* 状态栏                                                             */
+/* ------------------------------------------------------------------ */
+
 #status {
     height: 1;
     background: $panel;
     padding: 0 2;
 }
 
+.status-spinner {
+    width: 2;
+    content-align: center middle;
+}
+
+.status-idle {
+    color: $success;
+}
+
+.status-busy {
+    color: $warning;
+}
+
+.status-error {
+    color: $error;
+}
+
 .status-state {
-    width: 26;
+    width: 28;
 }
 
 .status-model {
-    width: 32;
+    width: 30;
+    color: $text-muted;
 }
 
 .status-directory {
@@ -88,16 +229,42 @@ Markdown {
     color: $text-muted;
 }
 
-#prompt {
+/* ------------------------------------------------------------------ */
+/* 输入栏                                                             */
+/* ------------------------------------------------------------------ */
+
+#prompt-bar {
     height: 3;
-    border: tall $primary;
     margin: 0 2;
+    border: tall $primary;
+    background: $panel;
 }
 
-#prompt:focus {
+#prompt-bar:focus-within {
     border: tall $accent;
+    background: $boost;
+}
+
+#prompt-bar .prompt-prefix {
+    width: 3;
+    content-align: center middle;
+    color: $accent;
+    text-style: bold;
+}
+
+#prompt-bar Input {
+    height: 1;
+    padding: 0 1;
+    border: none;
+    background: transparent;
+}
+
+#prompt-bar Input:focus {
+    border: none;
+    background: transparent;
 }
 
 Footer {
     background: $panel;
+    color: $text-muted;
 }

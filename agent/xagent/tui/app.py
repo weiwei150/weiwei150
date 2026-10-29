@@ -23,7 +23,7 @@ from core.events import (
 )
 
 from .commands import HELP_TEXT, parse_command
-from .widgets import ChatView, PromptInput, StatusBar
+from .widgets import ChatView, PromptBar, PromptInput, StatusBar
 from .widgets.messages import AssistantMessage, ToolCallMessage
 
 
@@ -31,7 +31,7 @@ class XAgentApp(App[None]):
     """xagent 的 TUI 实现。"""
 
     CSS_PATH = "styles.tcss"
-    TITLE = "xagent"
+    TITLE = "XAgent"
     SUB_TITLE = "本地文件操作 Agent"
 
     BINDINGS: ClassVar[list[Binding]] = [
@@ -55,12 +55,12 @@ class XAgentApp(App[None]):
         self._busy = False
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield Header(show_clock=True)
         yield ChatView(id="chat")
         yield StatusBar(id="status")
-        yield PromptInput(
-            placeholder="输入指令，Enter 发送；/help 查看命令",
-            id="prompt",
+        yield PromptBar(
+            placeholder="输入指令，Enter 发送 · /help 查看命令",
+            id="prompt-bar",
         )
         yield Footer()
 
@@ -90,7 +90,7 @@ class XAgentApp(App[None]):
             self._session.model_name,
             str(self._session.working_directory),
         )
-        self._chat.add_system(self._welcome_text())
+        self._show_welcome()
         self._prompt.focus()
 
     async def on_unmount(self) -> None:
@@ -252,7 +252,7 @@ class XAgentApp(App[None]):
             return
         self._session.reset()
         self._chat.clear_messages()
-        self._chat.add_system(self._welcome_text())
+        self._show_welcome()
         self._status.set_state("就绪", "idle")
         self._prompt.focus()
 
@@ -261,10 +261,10 @@ class XAgentApp(App[None]):
 
     # ------------------------------------------------------------------
 
-    def _welcome_text(self) -> str:
-        directory = self._session.working_directory if self._session else "-"
-        return (
-            "xagent 本地文件操作 Agent\n"
-            f"工作目录: {directory}\n"
-            "输入自然语言指令，/help 查看命令，Ctrl+Q 退出。"
+    def _show_welcome(self) -> None:
+        if self._session is None:
+            return
+        self._chat.add_welcome(
+            str(self._session.working_directory),
+            self._session.model_name,
         )

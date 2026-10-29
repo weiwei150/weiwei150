@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from .base import Tool, ToolContext, ToolRegistry
 from .filesystem import build_filesystem_tools
+from .search import build_search_tools
 from .system import build_system_tools
+from .web import build_web_tools
 
 
 def build_default_registry(context: ToolContext) -> ToolRegistry:
@@ -13,6 +15,8 @@ def build_default_registry(context: ToolContext) -> ToolRegistry:
     registry = ToolRegistry(context)
     registry.register_all(build_system_tools())
     registry.register_all(build_filesystem_tools())
+    registry.register_all(build_search_tools())
+    registry.register_all(build_web_tools())
     return registry
 
 

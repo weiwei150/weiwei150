@@ -1,11 +1,13 @@
-"""带历史记录的输入框。"""
+"""输入组件。"""
 
 from __future__ import annotations
 
 from typing import Any
 
+from rich.text import Text
 from textual import events
-from textual.widgets import Input
+from textual.containers import Horizontal
+from textual.widgets import Input, Static
 
 
 class PromptInput(Input):
@@ -42,3 +44,18 @@ class PromptInput(Input):
         else:
             self.value = self._history[self._history_index]
         self.cursor_position = len(self.value)
+
+
+class PromptBar(Horizontal):
+    """带提示符的输入栏。"""
+
+    def __init__(self, placeholder: str = "", **kwargs: Any) -> None:
+        self.input = PromptInput(
+            placeholder=placeholder,
+            id="prompt-input",
+        )
+        super().__init__(
+            Static(Text("❯"), classes="prompt-prefix"),
+            self.input,
+            **kwargs,
+        )

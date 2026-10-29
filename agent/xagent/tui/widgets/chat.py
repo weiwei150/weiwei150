@@ -14,6 +14,7 @@ from .messages import (
     ToolCallMessage,
     UserMessage,
 )
+from .welcome import WelcomePanel
 
 
 class ChatView(VerticalScroll):
@@ -22,6 +23,10 @@ class ChatView(VerticalScroll):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._last_follow = 0.0
+
+    def add_welcome(self, directory: str, model_name: str) -> None:
+        self.mount(WelcomePanel(directory, model_name))
+        self.follow_stream(force=True)
 
     def add_system(self, text: str) -> None:
         self.mount(SystemNotice(text))

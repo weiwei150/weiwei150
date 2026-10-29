@@ -1,2 +1,7 @@
+lxml>=6.0
+lxml_html_clean>=0.4
 openai>=1.30,<4
+starlette>=0.37,<2
 textual>=0.80,<9
+trafilatura>=2.0,<3
+uvicorn>=0.30,<1
