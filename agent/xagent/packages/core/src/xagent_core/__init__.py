@@ -17,6 +17,13 @@ from .events import (
 from .factory import create_session
 from .llm import ChatModel, LLMDelta, OpenAIChatModel, ToolCallDelta
 from .models import ToolCall, ToolExecution
+from .skills import (
+    Skill,
+    SkillRegistry,
+    build_skills_prompt,
+    discover_skills,
+    parse_frontmatter,
+)
 from .tools import Tool, ToolContext, ToolRegistry, build_default_registry
 
 __all__ = [
@@ -30,6 +37,8 @@ __all__ = [
     "RunFinished",
     "RunStarted",
     "Settings",
+    "Skill",
+    "SkillRegistry",
     "TextDelta",
     "Tool",
     "ToolCall",
@@ -40,6 +49,9 @@ __all__ = [
     "ToolExecution",
     "ToolRegistry",
     "build_default_registry",
+    "build_skills_prompt",
     "create_session",
+    "discover_skills",
     "load_settings",
+    "parse_frontmatter",
 ]

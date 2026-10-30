@@ -10,6 +10,8 @@ from pathlib import Path
 from .agent import AgentSession
 from .config import Settings, load_settings
 from .llm import ChatModel, OpenAIChatModel
+from .prompts import SYSTEM_PROMPT
+from .skills import build_skills_prompt, discover_skills
 from .tools import ToolContext, build_default_registry
 
 
@@ -24,6 +26,10 @@ def create_session(
     resolved_settings = settings or load_settings()
     working_directory = Path(base_dir).expanduser().resolve() if base_dir else Path.cwd().resolve()
 
+    # 项目根目录就是程序启动时的工作目录（或 --directory 指定的目录），
+    # 不是 Python 安装目录，也不是 xagent 源码目录。
+    skills = discover_skills(working_directory)
+
     chat_model: ChatModel = model or OpenAIChatModel(
         base_url=resolved_settings.base_url,
         api_key=resolved_settings.api_key,
@@ -37,12 +43,19 @@ def create_session(
             search_api_key=resolved_settings.search_api_key,
             search_endpoint=resolved_settings.search_endpoint,
             search_top_k=resolved_settings.search_top_k,
+            skills=skills,
         )
+    )
+
+    skills_prompt = build_skills_prompt(skills)
+    system_prompt = (
+        f"{SYSTEM_PROMPT}\n\n{skills_prompt}" if skills_prompt else SYSTEM_PROMPT
     )
 
     return AgentSession(
         model=chat_model,
         tools=registry,
+        system_prompt=system_prompt,
         max_tool_rounds=resolved_settings.max_tool_rounds,
         model_name=resolved_settings.model_name,
     )

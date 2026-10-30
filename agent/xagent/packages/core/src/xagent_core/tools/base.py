@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from ..models import ToolExecution
+from ..skills import SkillRegistry
 
 ToolHandler = Callable[["ToolContext", Mapping[str, Any]], str]
 
@@ -27,6 +28,7 @@ class ToolContext:
     search_api_key: str = ""
     search_endpoint: str = "https://qianfan.baidubce.com/v2/ai_search/web_search"
     search_top_k: int = 10
+    skills: SkillRegistry | None = None
 
 
 @dataclass(frozen=True)

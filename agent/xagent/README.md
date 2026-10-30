@@ -25,6 +25,7 @@ xagent/
 │   │       ├── llm.py              # ChatModel 协议 + OpenAI 兼容实现
 │   │       ├── models.py           # 工具调用 / 结果等领域对象
 │   │       ├── prompts.py          # 系统提示词
+│   │       ├── skills.py           # Agent Skills 发现 / 注册 / 提示词
 │   │       └── tools/
 │   │           ├── base.py         # Tool、ToolContext、ToolRegistry
 │   │           ├── cli.py          # Runcli
@@ -32,6 +33,7 @@ xagent/
 │   │           ├── filesystem.py   # 文件 / 目录工具
 │   │           ├── helpers.py      # 路径、文本、JSON 辅助
 │   │           ├── search.py       # searchweb
+│   │           ├── skills.py       # loadSkill
 │   │           ├── system.py       # get_date
 │   │           └── web.py          # fet
 │   ├── server/
@@ -95,7 +97,7 @@ flowchart TB
         API["AgentSession.send()<br/>AsyncIterator[AgentEvent]"]
         AGENT["agent.py<br/>会话状态机 / 工具循环"]
         LLM["llm.py<br/>ChatModel 协议"]
-        TOOLS["tools/<br/>ToolRegistry + 14 个工具"]
+        TOOLS["tools/<br/>ToolRegistry + 15 个工具"]
         CONFIG["config.py<br/>Settings"]
         FACTORY["factory.py<br/>组合根"]
     end
@@ -251,12 +253,13 @@ Web 默认监听 `127.0.0.1:8000`，启动后会自动打开浏览器。相对�
 
 启动后进入聊天界面：
 
-- 顶部标题栏显示应用名和当前时间。
-- 欢迎面板展示工作目录、模型和快捷提示。
-- 消息以卡片呈现，用户 / 助手 / 系统 / 错误各有独立配色和时间戳。
-- 工具调用显示为卡片，完整参数与结果默认折叠，点击 `▸ 参数与结果` 展开。
-- 状态栏在 Agent 工作时显示动画 spinner，并持续显示模型和工作目录。
-- 底部输入栏带 `❯` 提示符，聚焦时边框高亮。
+- 采用 OpenCode 风格深色主题：低对比背景、暖色强调色、极简标题栏。
+- 顶部标题栏显示 `xagent` 和副标题，不再显示时钟。
+- 欢迎面板展示 `cwd`、模型和快捷提示。
+- 消息采用轻量列表布局，用户 / 助手 / 工具 / 错误使用不同的左侧强调线和颜色。
+- 工具调用卡片保留可折叠的参数与结果。
+- 状态栏在 Agent 工作时显示动画 spinner，并显示 `model:` 与 `cwd:`。
+- 底部输入栏为圆角边框，聚焦时高亮为强调色；底部保留快捷键提示。
 
 ```text
 ❯ 输入指令，Enter 发送 · /help 查看命令
@@ -348,6 +351,7 @@ Web 界面复用同一个 `xagent_core`，不需要单独维护 Agent 逻辑。�
 | 工具名 | 参数 | 说明 |
 | --- | --- | --- |
 | `get_date` | 无 | 获取当前日期时间 |
+| `loadSkill` | `name`、`filename` | 加载 skill 的完整 `SKILL.md`，或该 skill 目录内的附件文件 |
 | `Runcli` | `command`、`args`、`cwd`、`stdin`、`timeout`、`max_chars` | 调用本地已安装的 CLI，返回退出码、stdout 和 stderr |
 | `searchweb` | `query`、`max_results`、`timeout` | 调用百度千帆搜索 API，返回搜索摘要、来源标题和 URL，供模型挑选后再用 `fet` 获取正文 |
 | `fet` | `url`、`max_chars`、`timeout` | 调用本地 curl 获取 HTML，用 trafilatura 提取正文并转为 Markdown，保留标题、段落、列表、表格和链接，去除导航、广告、页脚 |
@@ -425,6 +429,57 @@ stdout 超过 `max_read_chars` 时截断并返回 `stdout_truncated: true`，同
   "path": "D:\\weillm\\test\\missing.md"
 }
 ```
+
+### Skills（按需加载）
+
+xagent 支持符合 Agent Skills 规范的 skill。启动时以**程序启动的工作目录**为项目根目录（使用 `--directory` 时就是该目录），扫描：
+
+```text
+<项目根目录>/.agents/skills/
+├── pdf-tools/
+│   ├── SKILL.md
+│   └── references/
+│       └── examples.md
+└── code-review/
+  └── SKILL.md
+```
+
+每个 skill 子目录必须包含 `SKILL.md`（文件名大小写不敏感），并在文件开头用 YAML frontmatter 声明 `name` 和 `description`：
+
+```markdown
+---
+name: pdf-tools
+description: Extract text and tables from PDF files on this machine.
+---
+
+# PDF tools
+
+Use the scripts in `references/` when the user asks to parse a PDF...
+```
+
+初始化阶段只读取并保留 frontmatter 中的 `name` 和 `description`，不会把正文放进上下文。发现结果会被整理后追加到 system prompt，例如：
+
+```text
+You have access to the following skills:
+- 'code-review': Review local changes and report concrete issues.
+- 'pdf-tools': Extract text and tables from PDF files on this machine.
+Use the 'loadSkill' tool to load the full instructions of a skill when needed.
+You can also load additional files referenced by a skill by passing the optional 'filename' argument.
+```
+
+模型需要某条完整指令时才调用 `loadSkill`：
+
+```json
+{"name": "pdf-tools"}
+```
+
+此时返回该 skill 的 `SKILL.md` 全文。需要读取附件时同时传入 `filename`：
+
+```json
+{"name": "pdf-tools", "filename": "references/examples.md"}
+```
+
+附件路径支持相对 skill 目录、相对项目工作目录和绝对路径，优先进行精确匹配；只提供文件名时会在该 skill 目录内递归查找，唯一命中才读取，多个同名文件则返回候选路径。所有附件读取都被限制在对应 skill 目录内部，`..`、目录外绝对路径和指向外部的符号链接都会被拒绝。非法 skill 目录（缺少 `SKILL.md` 或缺少必需字段）会被跳过，不影响其他工具和会话启动。
 
 ### 新增工具
 
@@ -549,7 +604,7 @@ xagent_server/static/app.js（流式文本 / 工具卡片 / Markdown）
 python -m unittest discover -s tests -v
 ```
 
-测试完全离线：使用脚本化 `ChatModel` 覆盖多轮工具调用、非法 JSON、轮数上限、路径保护、文件生命周期、Textual 无头交互，以及 Web 的 `/api/bootstrap`、SSE 聊天、会话历史和重置。
+测试完全离线：使用脚本化 `ChatModel` 覆盖多轮工具调用、非法 JSON、轮数上限、路径保护、文件生命周期、Textual 无头交互，以及 Web 的 `/api/bootstrap`、SSE 聊天、会话历史和重置；Agent Skills 的 frontmatter 解析、提示词注入、附件路径匹配和目录逃逸保护也有独立回归测试。
 
 静态检查：
 

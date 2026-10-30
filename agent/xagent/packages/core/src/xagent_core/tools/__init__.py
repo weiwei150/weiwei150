@@ -6,6 +6,7 @@ from .base import Tool, ToolContext, ToolRegistry
 from .cli import build_cli_tools
 from .filesystem import build_filesystem_tools
 from .search import build_search_tools
+from .skills import build_skill_tools
 from .system import build_system_tools
 from .web import build_web_tools
 
@@ -19,6 +20,7 @@ def build_default_registry(context: ToolContext) -> ToolRegistry:
     registry.register_all(build_cli_tools())
     registry.register_all(build_search_tools())
     registry.register_all(build_web_tools())
+    registry.register_all(build_skill_tools())
     return registry
 
 
