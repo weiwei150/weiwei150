@@ -20,15 +20,15 @@ class WelcomePanel(Vertical):
 
     def __init__(self, directory: str, model_name: str) -> None:
         super().__init__(
-            Static(Text("✦  XAGENT"), classes="welcome-title"),
+            Static(Text("xagent"), classes="welcome-title"),
             Static(
-                Text("本地文件操作 Agent · Textual TUI"),
+                Text("AI terminal agent · local tools · Textual TUI"),
                 classes="welcome-subtitle",
             ),
             Static("", classes="welcome-rule"),
-            _row("工作目录", directory),
-            _row("模型", model_name),
-            _row("快速开始", "列出当前目录 · 读取 README.md · 创建 notes.md"),
-            _row("提示", "/help 查看命令 · Esc 取消 · Ctrl+Q 退出"),
+            _row("cwd", directory),
+            _row("model", model_name),
+            _row("quick start", "列出当前目录 · 读取 README.md · 创建 notes.md"),
+            _row("keys", "/help 命令 · Esc 取消 · Ctrl+N 新会话 · Ctrl+Q 退出"),
             classes="welcome",
         )

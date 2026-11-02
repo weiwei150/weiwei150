@@ -20,8 +20,8 @@ class StatusBar(Horizontal):
             Text("就绪", overflow="ellipsis", no_wrap=True),
             classes="status-state",
         )
-        self._model = Static(Text("◆ -"), classes="status-model")
-        self._directory = Static(Text("⌂ -"), classes="status-directory")
+        self._model = Static(Text("model: -"), classes="status-model")
+        self._directory = Static(Text("cwd: -"), classes="status-directory")
         self._kind = "idle"
         self._frame_index = 0
         self._timer = None
@@ -44,10 +44,10 @@ class StatusBar(Horizontal):
 
     def configure(self, model_name: str, directory: str) -> None:
         self._model.update(
-            Text(f"◆ {model_name}", overflow="ellipsis", no_wrap=True)
+            Text(f"model: {model_name}", overflow="ellipsis", no_wrap=True)
         )
         self._directory.update(
-            Text(f"⌂ {directory}", overflow="ellipsis", no_wrap=True)
+            Text(f"cwd: {directory}", overflow="ellipsis", no_wrap=True)
         )
 
     def set_state(self, text: str, kind: str = "idle") -> None:

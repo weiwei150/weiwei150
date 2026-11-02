@@ -64,7 +64,7 @@ class AssistantMessage(Vertical):
         self._final_body = Markdown("", classes="body final-body")
         self._final_body.display = False
         super().__init__(
-            _role_header("✦", "XAgent"),
+            _role_header("✻", "xagent"),
             self._stream_body,
             self._final_body,
             classes="message assistant",

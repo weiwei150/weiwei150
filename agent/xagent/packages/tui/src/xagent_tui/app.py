@@ -30,8 +30,8 @@ class XAgentApp(App[None]):
     """xagent 的 TUI 实现。"""
 
     CSS_PATH = "styles.tcss"
-    TITLE = "XAgent"
-    SUB_TITLE = "本地文件操作 Agent"
+    TITLE = "xagent"
+    SUB_TITLE = "AI terminal agent"
 
     BINDINGS: ClassVar[list[Binding]] = [
         Binding("ctrl+q", "quit", "退出"),
@@ -54,11 +54,11 @@ class XAgentApp(App[None]):
         self._busy = False
 
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
+        yield Header(show_clock=False)
         yield ChatView(id="chat")
         yield StatusBar(id="status")
         yield PromptBar(
-            placeholder="输入指令，Enter 发送 · /help 查看命令",
+            placeholder="Ask anything…  Enter 发送 · /help 查看命令",
             id="prompt-bar",
         )
         yield Footer()
