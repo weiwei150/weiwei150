@@ -21,12 +21,8 @@ from .skills import (
     Skill,
     SkillRegistry,
     build_skills_prompt,
-    compose_skill_document,
     discover_skills,
-    is_valid_skill_name,
-    normalize_skill_name,
     parse_frontmatter,
-    split_skill_document,
 )
 from .tools import Tool, ToolContext, ToolRegistry, build_default_registry
 
@@ -54,12 +50,8 @@ __all__ = [
     "ToolRegistry",
     "build_default_registry",
     "build_skills_prompt",
-    "compose_skill_document",
     "create_session",
     "discover_skills",
-    "is_valid_skill_name",
     "load_settings",
-    "normalize_skill_name",
     "parse_frontmatter",
-    "split_skill_document",
 ]

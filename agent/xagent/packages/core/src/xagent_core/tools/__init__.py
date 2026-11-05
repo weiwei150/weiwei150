@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
-
-from ..skills import discover_skills
 from .base import Tool, ToolContext, ToolRegistry
 from .cli import build_cli_tools
 from .filesystem import build_filesystem_tools
@@ -16,9 +13,6 @@ from .web import build_web_tools
 
 def build_default_registry(context: ToolContext) -> ToolRegistry:
     """按固定顺序注册默认工具。"""
-
-    if context.skills is None:
-        context = replace(context, skills=discover_skills(context.base_dir))
 
     registry = ToolRegistry(context)
     registry.register_all(build_system_tools())

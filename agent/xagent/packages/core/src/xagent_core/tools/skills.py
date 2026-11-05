@@ -1,26 +1,15 @@
-"""``loadSkill`` 工具：按需加载 skill 指令和附件。
-
-skill 正文只在模型主动调用本工具时进入对话上下文。所有附件读取都被限制在
-对应 skill 目录内部，避免 ``..``、绝对路径或符号链接把读取范围带到目录之外。
-"""
+"""Load skill instructions and attachments on demand."""
 
 from __future__ import annotations
 
 import os
-import shutil
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from ..skills import (
-    SKILLS_DIRECTORY,
-    Skill,
-    compose_skill_document,
-    is_valid_skill_name,
-    normalize_skill_name,
-)
+from ..skills import Skill
 from .base import Tool, ToolContext
-from .helpers import fail, is_text_file, ok, read_text, write_text
+from .helpers import fail, is_text_file, ok, read_text
 
 
 def _relative_to(path: Path, root: Path) -> str:
@@ -52,12 +41,7 @@ def _dedupe_paths(paths: list[Path]) -> list[Path]:
 
 
 def _normalize_filename(raw: object) -> str:
-    return (
-        str(raw if raw is not None else "")
-        .strip()
-        .strip('"')
-        .strip("'")
-    )
+    return str(raw if raw is not None else "").strip().strip('"').strip("'")
 
 
 def _read_skill_instructions(context: ToolContext, skill: Skill) -> str:
@@ -116,14 +100,13 @@ def _exact_candidates(context: ToolContext, skill: Skill, filename: str) -> list
     if expanded.is_absolute():
         candidates.append(expanded)
     else:
-        # 优先解释为相对 skill 目录的路径，其次才是项目工作目录相对路径
         candidates.append(skill.directory / expanded)
         candidates.append(context.base_dir / expanded)
     return _dedupe_paths(candidates)
 
 
 def _search_by_filename(skill: Skill, filename: str) -> list[Path]:
-    """在 skill 目录中递归查找同名文件，返回全部候选。"""
+    """Find all matching filenames recursively within a skill directory."""
 
     target = filename.casefold()
     try:
@@ -174,7 +157,6 @@ def _load_attachment(context: ToolContext, skill: Skill, filename: str) -> str:
             )
 
     if outside:
-        # 明确拒绝目录外路径，即使目标存在也不读取
         return fail(
             "文件路径超出指定 skill 的目录范围",
             skill=skill.name,
@@ -200,7 +182,7 @@ def _load_attachment(context: ToolContext, skill: Skill, filename: str) -> str:
 
 
 def load_skill(context: ToolContext, arguments: Mapping[str, Any]) -> str:
-    """加载 skill 的完整 SKILL.md，或该 skill 目录内的附件。"""
+    """Load a skill's instructions or one attachment."""
 
     name = _normalize_filename(arguments.get("name"))
     if not name:
@@ -228,170 +210,10 @@ def load_skill(context: ToolContext, arguments: Mapping[str, Any]) -> str:
     return _load_attachment(context, skill, filename)
 
 
-def _find_existing_skill_directory(skills_root: Path, name: str) -> Path | None:
-    target = skills_root / name
-    if target.exists():
-        return target
-    try:
-        for child in skills_root.iterdir():
-            if child.is_dir() and child.name.casefold() == name.casefold():
-                return child
-    except OSError:
-        pass
-    return None
-
-
-def create_skill(context: ToolContext, arguments: Mapping[str, Any]) -> str:
-    """在当前项目的 ``.agents/skills`` 下创建新 skill 的 SKILL.md。"""
-
-    raw_name = _normalize_filename(arguments.get("name"))
-    if not raw_name:
-        return fail("name 不能为空", reason="missing_name")
-
-    name = normalize_skill_name(raw_name)
-    if not is_valid_skill_name(name):
-        if len(name) > 64:
-            message = "Skill 名称过长，规范化后不能超过 64 个字符"
-        else:
-            message = (
-                "Skill 名称无效：请使用小写字母、数字和连字符，"
-                "例如 'pdf-tools'"
-            )
-        return fail(
-            message,
-            name=name,
-            requested_name=raw_name,
-            reason="invalid_name",
-        )
-
-    raw_context = arguments.get("skillContext")
-    if raw_context is None:
-        raw_context = ""
-    if not isinstance(raw_context, str):
-        raw_context = str(raw_context)
-    if not raw_context.strip():
-        return fail(
-            "skillContext 不能为空，必须提供 SKILL.md 的正文内容",
-            name=name,
-            reason="missing_context",
-        )
-
-    registry = context.skills
-    existing = registry.get(name) if registry is not None else None
-    if existing is not None:
-        return fail(
-            f"Skill 已存在，未覆盖原有内容: {name}",
-            name=name,
-            path=str(existing.skill_file),
-            reason="skill_exists",
-        )
-
-    skills_root = context.base_dir / SKILLS_DIRECTORY
-    existing_directory = _find_existing_skill_directory(skills_root, name)
-    if existing_directory is not None:
-        return fail(
-            f"Skill 目录已存在，未覆盖原有内容: {name}",
-            name=name,
-            path=str(existing_directory),
-            reason="skill_exists",
-        )
-
-    try:
-        document, description = compose_skill_document(name, raw_context)
-    except (TypeError, ValueError) as exc:
-        return fail(str(exc), name=name, reason="invalid_context")
-
-    skill_directory = skills_root / name
-    skill_file = skill_directory / "SKILL.md"
-    created = False
-    try:
-        skills_root.mkdir(parents=True, exist_ok=True)
-        skill_directory.mkdir()
-        created = True
-        write_text(skill_file, document)
-        size = skill_file.stat().st_size
-    except FileExistsError:
-        return fail(
-            f"Skill 目录已存在，未覆盖原有内容: {name}",
-            name=name,
-            path=str(skill_directory),
-            reason="skill_exists",
-        )
-    except OSError as exc:
-        if created:
-            shutil.rmtree(skill_directory, ignore_errors=True)
-        return fail(
-            f"创建 Skill 失败: {exc}",
-            name=name,
-            path=str(skill_directory),
-            reason="write_failed",
-        )
-
-    skill = Skill(
-        name=name,
-        description=description,
-        directory=skill_directory.resolve(),
-        skill_file=skill_file.resolve(),
-    )
-    if registry is not None:
-        try:
-            registry.register(skill)
-        except ValueError:
-            # 目录与文件已经成功创建；注册冲突通常来自并发写入，不应回滚文件
-            pass
-
-    return ok(
-        skill=name,
-        path=str(skill_file),
-        directory=str(skill_directory),
-        description=description,
-        size=size,
-        created=True,
-        message=(
-            "Skill 已创建。如需补充 references/、scripts/ 等目录或辅助文件，"
-            "请继续使用 create_directory、create_file 等文件工具。"
-        ),
-    )
-
-
 def build_skill_tools() -> list[Tool]:
-    """构造 skill 创建与加载工具。"""
+    """Build the skill-loading tool."""
 
     return [
-        Tool(
-            name="createSkill",
-            description=(
-                "当用户要求创建新的 Agent Skill 时调用。工具会在当前项目根目录的 "
-                ".agents/skills/ 下创建与 name 对应的英文子目录并生成 SKILL.md，"
-                "自动确保文件包含合法的 YAML frontmatter、name、description 和正文。"
-                "Skill 名称会规范化为小写字母、数字和连字符；如果同名 Skill 已存在"
-                "则返回错误且不覆盖。本工具只创建 SKILL.md，不会创建 references/、"
-                "scripts/ 等目录或其他辅助文件；如需这些内容，请继续调用现有的"
-                "文件系统工具。"
-            ),
-            parameters={
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": (
-                            "Skill 名称，会规范化为小写字母、数字和连字符，"
-                            "例如 'pdf-tools'"
-                        ),
-                    },
-                    "skillContext": {
-                        "type": "string",
-                        "description": (
-                            "写入 SKILL.md 的完整内容。可以包含 YAML frontmatter"
-                            "（其中 description 会被复用），也可以只提供正文；"
-                            "缺少 description 时会从正文首段自动推导。"
-                        ),
-                    },
-                },
-                "required": ["name", "skillContext"],
-            },
-            handler=create_skill,
-        ),
         Tool(
             name="loadSkill",
             description=(
@@ -419,8 +241,8 @@ def build_skill_tools() -> list[Tool]:
                 "required": ["name"],
             },
             handler=load_skill,
-        ),
+        )
     ]
 
 
-__all__ = ["build_skill_tools", "create_skill", "load_skill"]
+__all__ = ["build_skill_tools", "load_skill"]

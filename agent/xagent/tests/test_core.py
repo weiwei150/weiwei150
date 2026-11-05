@@ -108,7 +108,7 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
         )
 
     def test_registry_contents(self) -> None:
-        self.assertEqual(len(self.registry.names), 16)
+        self.assertEqual(len(self.registry.names), 15)
         self.assertEqual(self.registry.names[0], "get_date")
         self.assertIn("read_text_file", self.registry.names)
         self.assertIn("rename_path", self.registry.names)
@@ -116,7 +116,6 @@ class CoreTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("searchweb", self.registry.names)
         self.assertIn("fet", self.registry.names)
         self.assertIn("loadSkill", self.registry.names)
-        self.assertIn("createSkill", self.registry.names)
         schemas = self.registry.specs()
         self.assertTrue(all(item["type"] == "function" for item in schemas))
 

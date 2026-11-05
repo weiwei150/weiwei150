@@ -33,7 +33,7 @@ xagent/
 │   │           ├── filesystem.py   # 文件 / 目录工具
 │   │           ├── helpers.py      # 路径、文本、JSON 辅助
 │   │           ├── search.py       # searchweb
-│   │           ├── skills.py       # createSkill / loadSkill
+│   │           ├── skills.py       # loadSkill
 │   │           ├── system.py       # get_date
 │   │           └── web.py          # fet
 │   ├── server/
@@ -97,7 +97,7 @@ flowchart TB
         API["AgentSession.send()<br/>AsyncIterator[AgentEvent]"]
         AGENT["agent.py<br/>会话状态机 / 工具循环"]
         LLM["llm.py<br/>ChatModel 协议"]
-        TOOLS["tools/<br/>ToolRegistry + 16 个工具"]
+        TOOLS["tools/<br/>ToolRegistry + 15 个工具"]
         CONFIG["config.py<br/>Settings"]
         FACTORY["factory.py<br/>组合根"]
     end
@@ -351,7 +351,6 @@ Web 界面复用同一个 `xagent_core`，不需要单独维护 Agent 逻辑。�
 | 工具名 | 参数 | 说明 |
 | --- | --- | --- |
 | `get_date` | 无 | 获取当前日期时间 |
-| `createSkill` | `name`、`skillContext` | 在 `.agents/skills/` 下创建新 skill 的 `SKILL.md`，自动生成规范 frontmatter |
 | `loadSkill` | `name`、`filename` | 加载 skill 的完整 `SKILL.md`，或该 skill 目录内的附件文件 |
 | `Runcli` | `command`、`args`、`cwd`、`stdin`、`timeout`、`max_chars` | 调用本地已安装的 CLI，返回退出码、stdout 和 stderr |
 | `searchweb` | `query`、`max_results`、`timeout` | 调用百度千帆搜索 API，返回搜索摘要、来源标题和 URL，供模型挑选后再用 `fet` 获取正文 |
@@ -442,7 +441,7 @@ xagent 支持符合 Agent Skills 规范的 skill。启动时以**程序启动的
 │   └── references/
 │       └── examples.md
 └── code-review/
-    └── SKILL.md
+  └── SKILL.md
 ```
 
 每个 skill 子目录必须包含 `SKILL.md`（文件名大小写不敏感），并在文件开头用 YAML frontmatter 声明 `name` 和 `description`：
@@ -481,21 +480,6 @@ You can also load additional files referenced by a skill by passing the optional
 ```
 
 附件路径支持相对 skill 目录、相对项目工作目录和绝对路径，优先进行精确匹配；只提供文件名时会在该 skill 目录内递归查找，唯一命中才读取，多个同名文件则返回候选路径。所有附件读取都被限制在对应 skill 目录内部，`..`、目录外绝对路径和指向外部的符号链接都会被拒绝。非法 skill 目录（缺少 `SKILL.md` 或缺少必需字段）会被跳过，不影响其他工具和会话启动。
-
-也可以让 Agent 直接创建 skill。模型根据用户要求调用 `createSkill`：
-
-```json
-{
-  "name": "pdf-tools",
-  "skillContext": "---\nname: pdf-tools\ndescription: Extract text and tables from PDF files.\n---\n\n# PDF tools\n\nUse the scripts in references/ ..."
-}
-```
-
-- `name` 会规范化为小写字母、数字和连字符，并作为 `.agents/skills/` 下的英文子目录名。
-- `skillContext` 是写入 `SKILL.md` 的完整内容，可以包含 frontmatter；其中 `description` 会被复用。如果没有 frontmatter，工具会自动生成，并从正文首段推导 `description`。
-- 同名目录或已注册 skill 已存在时返回 `skill_exists`，不会覆盖原文件。
-- `createSkill` 只创建 `SKILL.md`。如果还需要 `references/`、`scripts/` 等目录或其他辅助文件，模型应继续调用 `create_directory`、`create_file`、`edit_text_file` 等现有文件工具。
-- 新建的 skill 会立即加入当前会话的注册表，可直接用 `loadSkill` 加载；下一次启动时会由 system prompt 正常列出。
 
 ### 新增工具
 
@@ -620,7 +604,7 @@ xagent_server/static/app.js（流式文本 / 工具卡片 / Markdown）
 python -m unittest discover -s tests -v
 ```
 
-测试完全离线：使用脚本化 `ChatModel` 覆盖多轮工具调用、非法 JSON、轮数上限、路径保护、文件生命周期、Textual 无头交互，以及 Web 的 `/api/bootstrap`、SSE 聊天、会话历史和重置；Agent Skills 的 frontmatter 解析、提示词注入、skill 创建、附件路径匹配和目录逃逸保护也有独立回归测试。
+测试完全离线：使用脚本化 `ChatModel` 覆盖多轮工具调用、非法 JSON、轮数上限、路径保护、文件生命周期、Textual 无头交互，以及 Web 的 `/api/bootstrap`、SSE 聊天、会话历史和重置；Agent Skills 的 frontmatter 解析、提示词注入、附件路径匹配和目录逃逸保护也有独立回归测试。
 
 静态检查：
 
