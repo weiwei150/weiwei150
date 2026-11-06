@@ -14,6 +14,14 @@ python -m anythingllm_mcp.server
 anythingllm-mcp
 ```
 
+### 启动 Streamable HTTP
+```bash
+python -m anythingllm_mcp.server --transport streamable-http --host 127.0.0.1 --port 8091
+# 或
+anythingllm-mcp-http --port 8091
+```
+默认地址：`http://127.0.0.1:8091/mcp`
+
 ### 测试工具调用
 ```bash
 python -c "
@@ -47,6 +55,7 @@ python -m pytest tests/
 - `MCPServer` 替代 `FastMCP`
 - `@mcp.tool()` 装饰器注册工具
 - `mcp.run(transport="stdio")` 同步启动
+- `mcp.run(transport="streamable-http", host=..., port=..., streamable_http_path="/mcp")` 启动 HTTP
 - 类型提示即为 JSON Schema
 - 无握手、无会话
 - `Client(mode="2026-07-28")` 连接
@@ -57,4 +66,3 @@ python -m pytest tests/
 - 添加 `vector_search` 工具
 - 暴露文档列表为 resource
 - 添加 prompt 模板
-- 支持 streamable-http 传输

@@ -19,11 +19,27 @@ pip install -e .
 
 ### 启动
 
+stdio 模式（默认，供 Claude Desktop 等通过子进程接入）：
+
 ```bash
 anythingllm-mcp
 # 或
 python -m anythingllm_mcp.server
 ```
+
+Streamable HTTP 模式（供 xAgent 等通过 URL 接入）：
+
+```bash
+python -m anythingllm_mcp.server --transport streamable-http --host 127.0.0.1 --port 8091
+# 或
+anythingllm-mcp --transport streamable-http --port 8091
+# 或
+anythingllm-mcp-http --port 8091
+```
+
+默认地址为 `http://127.0.0.1:8091/mcp`。也可以用环境变量配置：
+`ANYTHINGLLM_MCP_TRANSPORT`、`ANYTHINGLLM_MCP_HOST`、`ANYTHINGLLM_MCP_PORT`、
+`ANYTHINGLLM_MCP_PATH`。
 
 ### 配置
 
